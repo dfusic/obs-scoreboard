@@ -1,0 +1,27 @@
+:root {
+  --color-bg-page: #0a0c10;
+  --color-bg-panel: #13161d;
+  --color-bg-preview: #0d0f14;
+  --color-bg-control: #1e2330;
+  --color-bg-control-hover: #262d3d;
+  --color-border: #1e2330;
+  --color-border-strong: #2e3348;
+  --color-text: #e8eaf0;
+  --color-text-soft: #aab2cc;
+  --color-text-muted: #7a84a0;
+  --color-text-dim: #5a6278;
+  --color-text-faint: #3a405a;
+  --color-accent: #3d8bff;
+  --color-danger: #e83a3a;
+  --color-success: #00d26a;
+  --color-warning: #f5a623;
+
+  --font-sans: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-condensed: "Barlow Condensed", "Arial Narrow", sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+}

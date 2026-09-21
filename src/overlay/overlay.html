@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scoreboard Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./overlay.css" />
+  </head>
+  <body>
+    <video class="bg-video" autoplay muted loop playsinline>
+      <source src="/media/SemaforBG.mp4" type="video/mp4" />
+    </video>
+
+    <div class="clock">
+      <span id="clock-min">00</span>
+      <span class="clock-sep"></span>
+      <span id="clock-sec">00</span>
+    </div>
+
+    <img id="home-logo" class="logo logo-home" alt="" />
+    <img id="away-logo" class="logo logo-away" alt="" />
+
+    <div class="score">
+      <span id="home-score" class="score-num">0</span>
+      <span class="score-sep"></span>
+      <span id="away-score" class="score-num">0</span>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

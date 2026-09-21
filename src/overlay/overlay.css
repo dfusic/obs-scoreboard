@@ -1,0 +1,99 @@
+/* Designed for a 2304x1024 (~2.25:1) canvas. Everything is positioned in % and
+   sized in vw so it scales with any same-aspect Browser Source resolution. */
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: "Big Shoulders", "Bebas Neue", Impact, sans-serif;
+  font-weight: 800;
+}
+
+.bg-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.clock {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32%;
+  height: 33.4%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 1%;
+  background: #fff;
+  color: #000;
+  border-radius: 0 0 2vw 2vw;
+  font-size: 11.6vw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  gap: 1.2vw;
+}
+
+/* Colon drawn in CSS so it sits at the vertical centre of the digits
+   (the font's own colon glyph sits low). */
+.clock-sep {
+  width: 2.2vw;
+  height: 6.4vw;
+  background:
+    linear-gradient(#000, #000) top / 100% 34% no-repeat,
+    linear-gradient(#000, #000) bottom / 100% 34% no-repeat;
+}
+
+.logo {
+  position: fixed;
+  width: 32%;
+  height: 77%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+.logo:not([src]) {
+  visibility: hidden;
+}
+
+.logo-home {
+  left: 17.9%;
+  top: 54%;
+}
+
+.logo-away {
+  left: 83.2%;
+  top: 53.3%;
+}
+
+.score {
+  position: fixed;
+  left: 50%;
+  top: 65.5%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6vw;
+  color: #fff;
+  font-size: 22vw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The colon from the design: two light-grey squares. */
+.score-sep {
+  width: 3vw;
+  height: 10vw;
+  background:
+    linear-gradient(#dcdcdc, #dcdcdc) top / 100% 30% no-repeat,
+    linear-gradient(#dcdcdc, #dcdcdc) bottom / 100% 30% no-repeat;
+}

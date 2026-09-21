@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// The overlay (OBS Browser Source) has no login, so anyone can READ the match.
+// Only a signed-in user (the control dashboard) can WRITE.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

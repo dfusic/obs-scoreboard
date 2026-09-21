@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scoreboard Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../styles/variables.css" />
+    <link rel="stylesheet" href="./control.css" />
+  </head>
+  <body>
+    <section id="login-section" class="login-section" hidden>
+      <form id="login-form" class="panel login-card">
+        <div class="panel-title">Scoreboard Control</div>
+        <div class="panel-body">
+          <div class="field">
+            <label for="login-username">Username</label>
+            <input id="login-username" type="text" autocomplete="username" autocapitalize="none" required />
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <input id="login-password" type="password" autocomplete="current-password" required />
+          </div>
+          <span id="login-error" class="error-text" role="alert" hidden></span>
+          <button id="login-submit" type="submit" class="btn-start login-submit">Sign in</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="app-section" hidden>
+      <header class="top-bar">
+        <div class="top-bar-group">
+          <div id="status-dot" class="status-dot"></div>
+          <span id="status-label" class="status-label">Paused</span>
+        </div>
+        <div class="top-bar-divider"></div>
+        <span class="top-bar-title">Scoreboard Control</span>
+        <div class="top-bar-spacer"></div>
+        <button id="sign-out-btn" type="button" class="btn-ghost">Sign out</button>
+      </header>
+
+      <div class="layout">
+        <div class="column">
+          <div id="preview-panel" class="panel preview"></div>
+          <div id="score-panel" class="two-up"></div>
+          <div id="clock-panel" class="panel"></div>
+        </div>
+
+        <div class="column">
+          <div id="logo-panel" class="column"></div>
+          <div id="actions-panel" class="panel"></div>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
