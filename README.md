@@ -1,8 +1,13 @@
-# OBS Football Scoreboard
+# Football Scoreboard
 
-A live football/soccer scoreboard for OBS: an on-air overlay (Browser Source)
-plus an in-OBS control panel (Custom Browser Dock), synced through Firebase.
-No server to run — everything is static, hosted free on GitHub Pages.
+Live football broadcast graphics, synced through Firebase. No server to run: everything is static, hosted free on GitHub Pages.
+
+- **Output page**: one page that draws every on-air graphic: scoreboard, welcome screen, player intro, goal scorer, player card, lineup, and half/full time. Add it once as a Browser Source (OBS, vMix, Streamyard, or any capture tool). No per-graphic scenes are needed in OBS.
+- **Control dashboard**, with two pages:
+  - **Live**: pre-match lineup (tick who plays, drag into order), player intro stepped with Prev/Next or arrow keys, score, clock, "Goal!" with scorer picker, one-click scene switching, and a live preview of the output.
+  - **Setup**: teams (name, colours, logo), squads (full name + PNG photo; add a whole squad at once from photo files), and scene templates (title, subtitle, accent colour, background, auto-return time).
+
+  The home team is the focus: the away squad is optional per match ("Away team players & photos available").
 
 ## One-time setup
 
@@ -27,7 +32,7 @@ No server to run — everything is static, hosted free on GitHub Pages.
 2. **Authentication → Users → Add user**. The login form takes a plain *username*; it is turned into `<username>@scoreboard.local`, so for username `admin` create the user `admin@scoreboard.local` with your password. (Typing a full email in the username box also works.)
 3. Publish the updated rules (paste [firestore.rules](firestore.rules) into **Firestore Database → Rules**).
 
-**No Firebase Storage:** Cloud Storage now requires the paid Blaze plan even for free-tier-sized usage, so team logos aren't uploaded there. Instead, [src/shared/image.ts](src/shared/image.ts) resizes the chosen logo image client-side (max 300px) and stores it as a base64 PNG data URL directly on the match document in Firestore — well within Firestore's 1 MiB document limit, no extra service needed.
+**No Firebase Storage:** Cloud Storage now requires the paid Blaze plan even for free-tier-sized usage, so images aren't uploaded there. Instead, [src/shared/image.ts](src/shared/image.ts) resizes each image in the browser and stores it as a data URL on its own Firestore document: logos as PNG (600px), player photos as JPEG (600px), and scene backgrounds as JPEG (1920px). One image per team, player or scene document keeps each well within Firestore's 1 MiB document limit.
 
 ### 2. GitHub Pages
 
@@ -42,11 +47,13 @@ No server to run — everything is static, hosted free on GitHub Pages.
 
 ### 3. Add to OBS
 
-**Overlay (on-air graphic):**
+**Output (all on-air graphics):**
 1. Sources → **+** → **Browser Source**.
 2. URL: your deployed overlay URL.
-3. Width/Height: match your canvas resolution exactly (e.g. `3840` × `2160` for 4K).
-4. Leave "Shutdown source when not visible" **unchecked** so the clock and Firestore connection persist across scene switches.
+3. Width/Height: a ~2.25:1 size matching the design canvas (e.g. `2304` × `1024`). The graphics scale to any size of that aspect ratio.
+4. Leave "Shutdown source when not visible" **unchecked** so the clock and Firestore connection persist.
+
+Switching between the scoreboard, welcome, goal and other graphics happens on the dashboard's **Live** page. You don't need a separate OBS scene for each one. Any other tool that can show a web page (vMix, Streamyard, a hardware switcher) works the same way.
 
 **Control panel (operator UI, inside OBS):**
 1. Docks → **Custom Browser Docks**.
@@ -95,4 +102,4 @@ Production Firestore rules are deployed by hand: `npx firebase deploy --only fir
 npm test
 ```
 
-Covers the clock logic in [src/shared/clock.ts](src/shared/clock.ts) — the one piece of nontrivial pure logic in the app (survives reloads/network hiccups without drift by storing state, not a ticking counter).
+Covers the pure logic: the match clock ([src/shared/clock.ts](src/shared/clock.ts)) and the on-air scene with auto-return ([src/shared/program.ts](src/shared/program.ts)). Both are stored as state and derived locally, not as ticking counters, so reloads and network hiccups cause no drift.

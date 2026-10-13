@@ -1,10 +1,15 @@
 /**
- * Resizes an image file to fit within maxDimension and returns it as a PNG
- * data URL. Used to keep team logos small enough to store inline in a
- * Firestore document (1 MiB doc limit) instead of needing Cloud Storage,
- * which requires the paid Blaze plan even for small free-tier usage.
+ * Resizes an image file to fit within maxDimension and returns it as a data URL.
+ * Images are stored inline in Firestore docs (1 MiB doc limit) instead of Cloud
+ * Storage, which requires the paid Blaze plan even for small free-tier usage.
+ * Use PNG for logos (keeps transparency) and JPEG for photos and backgrounds (much smaller).
  */
-export function fileToResizedDataUrl(file: File, maxDimension: number): Promise<string> {
+export function fileToResizedDataUrl(
+  file: File,
+  maxDimension: number,
+  format: "image/png" | "image/jpeg" = "image/png",
+  quality = 0.85,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
@@ -23,7 +28,7 @@ export function fileToResizedDataUrl(file: File, maxDimension: number): Promise<
       }
       ctx.drawImage(img, 0, 0, width, height);
       URL.revokeObjectURL(objectUrl);
-      resolve(canvas.toDataURL("image/png"));
+      resolve(canvas.toDataURL(format, quality));
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
@@ -31,4 +36,13 @@ export function fileToResizedDataUrl(file: File, maxDimension: number): Promise<
     };
     img.src = objectUrl;
   });
+}
+
+/** Sets an <img> src only when it changed, so large data URLs aren't reloaded on every snapshot. */
+export function setImageSrc(img: HTMLImageElement, url: string | null): void {
+  if (url) {
+    if (img.getAttribute("src") !== url) img.src = url;
+  } else {
+    img.removeAttribute("src");
+  }
 }

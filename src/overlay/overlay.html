@@ -3,31 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scoreboard Overlay</title>
+    <title>Scoreboard Output</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,400..800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./overlay.css" />
   </head>
-  <body>
+  <body data-scene="scoreboard">
     <video class="bg-video" autoplay muted loop playsinline>
       <source src="/media/SemaforBG.mp4" type="video/mp4" />
     </video>
+    <img class="bg-image" alt="" />
 
-    <div class="clock">
-      <span id="clock-min">00</span>
-      <span class="clock-sep"></span>
-      <span id="clock-sec">00</span>
-    </div>
+    <section class="scene active" data-layer="scoreboard">
+      <div class="clock">
+        <span id="clock-min">00</span>
+        <span class="clock-sep"></span>
+        <span id="clock-sec">00</span>
+      </div>
 
-    <img id="home-logo" class="logo logo-home" alt="" />
-    <img id="away-logo" class="logo logo-away" alt="" />
+      <img id="home-logo" class="logo logo-home" alt="" />
+      <img id="away-logo" class="logo logo-away" alt="" />
 
-    <div class="score">
-      <span id="home-score" class="score-num">0</span>
-      <span class="score-sep"></span>
-      <span id="away-score" class="score-num">0</span>
-    </div>
+      <div class="score">
+        <span id="home-score" class="score-num">0</span>
+        <span class="score-sep"></span>
+        <span id="away-score" class="score-num">0</span>
+      </div>
+    </section>
+
+    <!-- Filled by scenes.ts -->
+    <section class="scene" data-layer="welcome"></section>
+    <section class="scene" data-layer="presentation"></section>
+    <section class="scene" data-layer="goal"></section>
+    <section class="scene" data-layer="playerCard"></section>
+    <section class="scene" data-layer="lineup"></section>
+    <section class="scene" data-layer="halftime"></section>
+    <section class="scene" data-layer="fulltime"></section>
 
     <script type="module" src="./main.ts"></script>
   </body>
