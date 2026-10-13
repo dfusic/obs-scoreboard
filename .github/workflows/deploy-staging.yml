@@ -1,0 +1,64 @@
+name: Deploy to staging
+
+# Staging = Firebase project granicar-scoreboard-staging, served by its Firebase Hosting.
+# - push to `staging`: deploy firestore.rules + the site to https://granicar-scoreboard-staging.web.app
+# - pull request into `staging`: deploy a temporary preview channel and comment its URL on the PR
+# Needs repo secret FIREBASE_SERVICE_ACCOUNT_STAGING (service-account JSON key for the staging project).
+
+on:
+  push:
+    branches: [staging]
+  pull_request:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:staging
+        env:
+          # Firebase Hosting serves the site from the root, not /obs-scoreboard/.
+          VITE_BASE_PATH: /
+
+      - name: Deploy Firestore rules
+        if: github.event_name != 'pull_request'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+      - if: github.event_name != 'pull_request'
+        run: npx firebase deploy --only firestore:rules --project staging --non-interactive
+
+      - name: Deploy site (live)
+        if: github.event_name != 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+          projectId: granicar-scoreboard-staging
+          channelId: live
+
+      - name: Deploy site (PR preview)
+        if: github.event_name == 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}
+          projectId: granicar-scoreboard-staging
+          expires: 7d

@@ -1,4 +1,5 @@
 import { describeAuthError, onAuthChange, signIn, signOut } from "@shared/auth";
+import { APP_ENV } from "@shared/firebase";
 import { ensureMatchInitialized, subscribeToMatch } from "@shared/matchRepo";
 import { initActionsPanel } from "./panels/actions-panel";
 import { initClockPanel, updateClockPanel } from "./panels/clock-panel";
@@ -20,6 +21,17 @@ const clockPanel = document.getElementById("clock-panel")!;
 const logoPanel = document.getElementById("logo-panel")!;
 const statusDot = document.getElementById("status-dot")!;
 const statusLabel = document.getElementById("status-label")!;
+
+// Make it obvious when this isn't the production dashboard.
+if (APP_ENV !== "production") {
+  const label = APP_ENV === "development" ? "Local" : APP_ENV;
+  document.title = `[${label.toUpperCase()}] ${document.title}`;
+  for (const badge of document.querySelectorAll<HTMLElement>("[data-env-badge]")) {
+    badge.textContent = label;
+    badge.classList.toggle("local", APP_ENV === "development");
+    badge.hidden = false;
+  }
+}
 
 initPreviewPanel(previewPanel);
 initScorePanel(scorePanel);

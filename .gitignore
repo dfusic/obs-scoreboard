@@ -5,3 +5,8 @@ dist/
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 *.tsbuildinfo
+.emulator-data/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/

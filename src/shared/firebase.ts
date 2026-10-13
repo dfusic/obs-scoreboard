@@ -1,18 +1,33 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
+// Config comes from .env.<mode> (development = emulators, staging, production).
 // These values are client identifiers, not secrets — safe to commit.
 // Access control comes from Firebase Auth + firestore.rules (writes require sign-in).
+function requireEnv(name: keyof ImportMetaEnv): string {
+  const value = import.meta.env[name];
+  if (!value) throw new Error(`Missing ${name}. Check .env.${import.meta.env.MODE}.`);
+  return value;
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyCcOfdh66iQWvoWARsKoh2ttVhzW10zQyE",
-  authDomain: "granicar-scoreboard.firebaseapp.com",
-  projectId: "granicar-scoreboard",
-  storageBucket: "granicar-scoreboard.firebasestorage.app",
-  messagingSenderId: "709531084356",
-  appId: "1:709531084356:web:d06aa533d6aad91d70be11",
+  apiKey: requireEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: requireEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: requireEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: requireEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: requireEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: requireEnv("VITE_FIREBASE_APP_ID"),
 };
+
+/** Vite mode: "development" (local emulators), "staging" or "production". */
+export const APP_ENV = import.meta.env.MODE;
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+if (import.meta.env.VITE_USE_EMULATORS === "true") {
+  connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+}

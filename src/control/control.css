@@ -80,6 +80,23 @@ body {
   color: var(--color-success);
 }
 
+/* Non-production environment marker (LOCAL / STAGING), set in main.ts. */
+.env-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #000;
+  background: var(--color-warning);
+}
+
+.env-badge.local {
+  background: var(--color-accent);
+}
+
 /* ---------- layout ---------- */
 
 .layout {

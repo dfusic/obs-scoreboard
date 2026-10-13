@@ -11,7 +11,7 @@ No server to run — everything is static, hosted free on GitHub Pages.
 1. Create a project at [console.firebase.google.com](https://console.firebase.google.com) (free "Spark" plan).
 2. **Build → Firestore Database** → Create database (production mode, any region).
 3. **Project settings → General → Your apps → Add app → Web** — copy the resulting config object.
-4. Paste those values into [src/shared/firebase.ts](src/shared/firebase.ts) (`firebaseConfig`).
+4. Paste those values into [.env.production](.env.production).
 5. Deploy the rules (requires the [Firebase CLI](https://firebase.google.com/docs/cli)):
     ```
     npm install -g firebase-tools
@@ -55,14 +55,39 @@ No server to run — everything is static, hosted free on GitHub Pages.
 
 You can also just open the control URL in a normal browser tab (phone, tablet, second laptop) — it works identically outside OBS.
 
+## Environments
+
+| | Local | Staging | Production |
+|---|---|---|---|
+| Firebase | Emulators (`demo-scoreboard`) | `granicar-scoreboard-staging` | `granicar-scoreboard` |
+| Config | `.env.development` | `.env.staging` | `.env.production` |
+| Runs on | `npm run dev` | Firebase Hosting, push to `staging` | GitHub Pages, push to `main` |
+
+Branch flow: feature branch → PR into `staging` (gets a preview URL) → merge (deploys staging) → PR `staging` → `main` (deploys production).
+
 ## Local development
+
+Requires **Java 21+** for the Firebase emulators (`winget install EclipseAdoptium.Temurin.21.JDK`).
 
 ```
 npm install
 npm run dev
 ```
 
-Open the printed URLs for `src/overlay/overlay.html` and `src/control/control.html` in two separate browser tabs to simulate the OBS split. This talks to your real Firebase project (no emulator) — safe to use since it's your own project and the worst case is test data in your own Firestore.
+This starts the Firebase Auth + Firestore emulators, creates the login **admin / admin123**, and runs Vite. Open the printed URLs for `src/overlay/overlay.html` and `src/control/control.html` in two tabs to simulate the OBS split. The Emulator UI at http://127.0.0.1:4000 shows the data. Local data is saved to `.emulator-data/` when you stop with Ctrl+C. Delete that folder to start fresh.
+
+Local development never touches a real Firebase project: the `demo-` project id makes Firebase refuse any cloud access. To run the UI locally against staging data instead, use `npm run dev:staging`.
+
+## Staging (one-time setup)
+
+1. Create a Firebase project `granicar-scoreboard-staging` (Spark plan). Enable **Firestore**, **Authentication → Email/Password**, and add a user (e.g. `admin@scoreboard.local`).
+2. **Project settings → Your apps → Add Web app**, then paste the config values into [.env.staging](.env.staging).
+3. Create a deploy key: run `npx firebase init hosting:github` and pick the staging project. It creates the service account and the GitHub secret. Then rename the secret to `FIREBASE_SERVICE_ACCOUNT_STAGING`. Alternatively, create a service-account JSON key in Google Cloud console (roles: Firebase Hosting Admin, Firebase Rules Admin) and add it as that repo secret by hand. Discard any workflow files the init command generates; [deploy-staging.yml](.github/workflows/deploy-staging.yml) already exists.
+4. Create the `staging` branch from `main` and push it.
+
+Pushes to `staging` deploy the Firestore rules and the site to `https://granicar-scoreboard-staging.web.app/src/control/control.html` (overlay: `/src/overlay/overlay.html`). PRs into `staging` get a temporary preview URL commented on the PR. The control page shows a **STAGING** badge so it is never mistaken for production.
+
+Production Firestore rules are deployed by hand: `npx firebase deploy --only firestore:rules --project prod`.
 
 ## Tests
 

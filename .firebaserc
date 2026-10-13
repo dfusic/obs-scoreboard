@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "demo-scoreboard",
+    "prod": "granicar-scoreboard",
+    "staging": "granicar-scoreboard-staging"
+  }
+}
