@@ -10,6 +10,10 @@ body {
   background: #000;
   font-family: "Big Shoulders", "Bebas Neue", Impact, sans-serif;
   font-weight: 800;
+  /* The font is variable with an optical-size axis. opsz 14 reproduces the static
+     cut the scoreboard was designed with; scenes override it where their design differs. */
+  font-optical-sizing: none;
+  font-variation-settings: "opsz" 14;
 }
 
 .bg-video {
@@ -96,4 +100,371 @@ body {
   background:
     linear-gradient(#dcdcdc, #dcdcdc) top / 100% 30% no-repeat,
     linear-gradient(#dcdcdc, #dcdcdc) bottom / 100% 30% no-repeat;
+}
+
+/* ---------- scenes ----------
+   One <section data-layer> per scene; main.ts toggles .active. Non-scoreboard
+   scenes draw on a solid card so they read on any background. */
+
+.bg-image {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+body.has-bg-image .bg-image {
+  display: block;
+}
+
+body.has-bg-image .bg-video {
+  visibility: hidden;
+}
+
+.scene {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+  color: #fff;
+  --accent: #fff;
+  --team-primary: #1e2330;
+  --team-secondary: #fff;
+}
+
+.scene.active {
+  opacity: 1;
+}
+
+.card {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 9%;
+  bottom: 9%;
+  box-sizing: border-box;
+  padding: 2.4vw 3vw;
+  background: rgba(10, 12, 16, 0.92);
+  border-top: 0.6vw solid var(--accent);
+  border-radius: 1.6vw;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.card-title {
+  color: var(--accent);
+  font-size: 5.6vw;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.card-subtitle {
+  font-weight: 600;
+  font-size: 2.2vw;
+  color: #c9cede;
+  margin-top: 0.6vw;
+}
+
+.matchup {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 2vw;
+}
+
+.team-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vw;
+  min-width: 0;
+}
+
+.team-logo {
+  width: 13vw;
+  height: 13vw;
+  object-fit: contain;
+}
+
+.logo-empty {
+  border-radius: 50%;
+  background: var(--team-primary);
+  border: 0.4vw solid var(--team-secondary);
+  box-sizing: border-box;
+}
+
+.team-name {
+  font-size: 3.2vw;
+  line-height: 1;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.vs {
+  font-size: 5vw;
+  color: var(--accent);
+}
+
+/* goal + player card */
+
+.feature {
+  flex-direction: row;
+  gap: 3vw;
+  align-items: stretch;
+}
+
+.feature-media {
+  flex: 0 0 26%;
+  border-radius: 1vw;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--team-primary), rgba(0, 0, 0, 0.6));
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.feature-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.feature-logo {
+  object-fit: contain;
+  width: 70%;
+  height: 70%;
+  margin: auto;
+}
+
+.feature-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.8vw;
+}
+
+.feature-name {
+  font-size: 5vw;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feature-meta {
+  font-weight: 600;
+  font-size: 2.2vw;
+  color: #c9cede;
+  text-transform: uppercase;
+}
+
+.feature-minute {
+  font-size: 3vw;
+  color: var(--accent);
+}
+
+.score-line {
+  display: flex;
+  align-items: baseline;
+  gap: 1.2vw;
+  margin-top: 1vw;
+  font-size: 2.6vw;
+  text-transform: uppercase;
+}
+
+.score-line-num {
+  font-size: 4vw;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-line-sep {
+  color: var(--accent);
+  margin: 0 0.4vw;
+}
+
+/* lineup */
+
+.lineup-header {
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  margin-bottom: 1.6vw;
+}
+
+.lineup-header .card-title {
+  font-size: 2.4vw;
+}
+
+.lineup-logo {
+  width: 7vw;
+  height: 7vw;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.lineup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 3;
+  column-gap: 3vw;
+  font-weight: 600;
+  font-size: 1.9vw;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.lineup-list li {
+  break-inside: avoid;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* half time / full time */
+
+.result .matchup {
+  align-items: flex-start;
+  padding-top: 1.6vw;
+}
+
+.result-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vw;
+  min-width: 0;
+}
+
+.result .team-logo {
+  width: 10vw;
+  height: 10vw;
+}
+
+.result-score {
+  font-size: 11vw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  align-self: center;
+}
+
+.scorers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-weight: 600;
+  font-size: 1.8vw;
+  line-height: 1.4;
+  text-align: center;
+  text-transform: uppercase;
+  color: #c9cede;
+}
+
+.minute {
+  color: var(--accent);
+}
+
+/* ---------- player intro ----------
+   Measured from the design frame (16:9): band 7-31% of the height, crest top-left
+   over the band, first name over a larger surname, PNG cut-out standing on the
+   bottom edge at the right. Sizes use vh so the layout follows the height on any
+   aspect ratio; main.ts shrinks long names to fit beside the photo. */
+
+.intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.intro-default-bg {
+  background:
+    repeating-linear-gradient(
+      -50deg,
+      rgba(255, 255, 255, 0.045) 0 7vh,
+      rgba(255, 255, 255, 0) 7vh 16vh
+    ),
+    #0a0a0b;
+}
+
+.intro-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7%;
+  height: 24%;
+  background: var(--team-primary);
+}
+
+.intro-crest {
+  position: absolute;
+  left: 5.2%;
+  top: 3.8%;
+  height: 33%;
+  max-width: 16%;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.intro-name {
+  position: absolute;
+  left: 5.6%;
+  bottom: 10.2%;
+  /* Room to the left of the photo; main.ts scales the font down to fit. */
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 4.7vh;
+  color: #fff;
+  /* Display cut at weight 400 matches the design width-for-height. Cap height is 0.8em. */
+  font-weight: 400;
+  font-variation-settings: "opsz" 72;
+  line-height: 0.8;
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: intro-text-in 0.5s ease-out both;
+}
+
+.intro-first {
+  font-size: 21vh;
+}
+
+.intro-last {
+  font-size: 28.9vh;
+  /* The design's surname is set wider than the first name. */
+  font-variation-settings: "opsz" 26;
+}
+
+.intro-photo {
+  position: absolute;
+  right: 3%;
+  bottom: 0;
+  height: 96%;
+  max-width: 45%;
+  object-fit: contain;
+  object-position: bottom right;
+  animation: intro-photo-in 0.6s ease-out both;
+}
+
+@keyframes intro-text-in {
+  from {
+    opacity: 0;
+    transform: translateX(-3vh);
+  }
+}
+
+@keyframes intro-photo-in {
+  from {
+    opacity: 0;
+    transform: translateX(4vh);
+  }
 }

@@ -9,6 +9,9 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID: string;
   /** "true" connects to the local Firebase emulators (see firebase.json). */
   readonly VITE_USE_EMULATORS?: string;
+  /** Emulator port overrides (default 8080 / 9099, as in firebase.json). */
+  readonly VITE_FIRESTORE_EMULATOR_PORT?: string;
+  readonly VITE_AUTH_EMULATOR_PORT?: string;
 }
 
 interface ImportMeta {

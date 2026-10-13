@@ -1,11 +1,21 @@
 import { describeAuthError, onAuthChange, signIn, signOut } from "@shared/auth";
 import { APP_ENV } from "@shared/firebase";
-import { ensureMatchInitialized, subscribeToMatch } from "@shared/matchRepo";
-import { initActionsPanel } from "./panels/actions-panel";
-import { initClockPanel, updateClockPanel } from "./panels/clock-panel";
-import { initLogoPanel, updateLogoPanel } from "./panels/logo-panel";
-import { initPreviewPanel, updatePreviewPanel } from "./panels/preview-panel";
-import { initScorePanel, updateScorePanel } from "./panels/score-panel";
+import { subscribeToLive } from "@shared/liveFeed";
+import { ensureMatchInitialized } from "@shared/matchRepo";
+import { subscribeToTeams } from "@shared/teamRepo";
+import type { MatchState, TeamProfile } from "@shared/types";
+import { initActionsPanel, updateActionsPanel } from "./live/actions-panel";
+import { initClockPanel, updateClockPanel } from "./live/clock-panel";
+import { initLineupPanel, updateLineupPanel } from "./live/lineup-panel";
+import { initPresentationPanel, updatePresentationPanel } from "./live/presentation-panel";
+import { initMatchPanel, updateMatchPanel } from "./live/match-panel";
+import { initPreviewPanel, updatePreviewPanel } from "./live/preview-panel";
+import { initScenePanel, updateScenePanel } from "./live/scene-panel";
+import { initScorePanel, updateScorePanel } from "./live/score-panel";
+import { initRouter, onPageShown } from "./router";
+import { initRosterPanel, showRosterFor } from "./setup/roster-panel";
+import { initSceneSettingsPanel, showSceneSettings, updateSceneSettingsPanel } from "./setup/scene-settings-panel";
+import { initTeamsPanel, updateTeamsPanel } from "./setup/teams-panel";
 
 const loginSection = document.getElementById("login-section")!;
 const appSection = document.getElementById("app-section")!;
@@ -15,12 +25,19 @@ const passwordInput = document.getElementById("login-password") as HTMLInputElem
 const loginError = document.getElementById("login-error")!;
 const loginSubmit = document.getElementById("login-submit") as HTMLButtonElement;
 
-const previewPanel = document.getElementById("preview-panel")!;
-const scorePanel = document.getElementById("score-panel")!;
-const clockPanel = document.getElementById("clock-panel")!;
-const logoPanel = document.getElementById("logo-panel")!;
-const statusDot = document.getElementById("status-dot")!;
-const statusLabel = document.getElementById("status-label")!;
+const panel = (id: string) => document.getElementById(id)!;
+const previewPanel = panel("preview-panel");
+const scorePanel = panel("score-panel");
+const clockPanel = panel("clock-panel");
+const matchPanel = panel("match-panel");
+const scenePanel = panel("scene-panel");
+const lineupPanel = panel("lineup-panel");
+const presentationPanel = panel("presentation-panel");
+const teamsPanel = panel("teams-panel");
+const rosterPanel = panel("roster-panel");
+const sceneSettingsPanel = panel("scene-settings-panel");
+const statusDot = panel("status-dot");
+const statusLabel = panel("status-label");
 
 // Make it obvious when this isn't the production dashboard.
 if (APP_ENV !== "production") {
@@ -36,8 +53,14 @@ if (APP_ENV !== "production") {
 initPreviewPanel(previewPanel);
 initScorePanel(scorePanel);
 initClockPanel(clockPanel);
-initLogoPanel(logoPanel);
-initActionsPanel(document.getElementById("actions-panel")!);
+initMatchPanel(matchPanel);
+initScenePanel(scenePanel);
+initLineupPanel(lineupPanel);
+initPresentationPanel(presentationPanel);
+initActionsPanel(panel("actions-panel"));
+initTeamsPanel(teamsPanel, (team) => showRosterFor(rosterPanel, team));
+initRosterPanel(rosterPanel);
+initSceneSettingsPanel(sceneSettingsPanel);
 
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -54,6 +77,20 @@ loginForm.addEventListener("submit", async (e) => {
   }
 });
 
+// Writes are fire-and-forget (`void promise`), so surface failures instead of losing them silently.
+const saveError = document.getElementById("save-error")!;
+let saveErrorTimer: number | undefined;
+window.addEventListener("unhandledrejection", (e) => {
+  const code = (e.reason as { code?: string } | null)?.code;
+  if (!code) return;
+  console.error("Save failed:", e.reason);
+  saveError.textContent =
+    code === "permission-denied" ? "Not saved: no permission (signed out or rules not deployed)" : `Not saved: ${code}`;
+  saveError.hidden = false;
+  clearTimeout(saveErrorTimer);
+  saveErrorTimer = window.setTimeout(() => (saveError.hidden = true), 8000);
+});
+
 document.getElementById("sign-out-btn")!.addEventListener("click", () => {
   void signOut();
 });
@@ -67,16 +104,48 @@ function startDashboard(): void {
 
   void ensureMatchInitialized();
 
-  subscribeToMatch((match) => {
-    updatePreviewPanel(previewPanel, match);
-    updateScorePanel(scorePanel, match);
-    updateClockPanel(clockPanel, match.clock);
-    updateLogoPanel(logoPanel, match);
+  let teams: TeamProfile[] = [];
+  let match: MatchState | null = null;
 
-    statusDot.classList.toggle("live", match.clock.running);
-    statusLabel.classList.toggle("live", match.clock.running);
-    statusLabel.textContent = match.clock.running ? "Live" : "Paused";
+  /**
+   * Runs one panel's update. Panels click-handle from the data they were last given,
+   * so a panel that throws must not stop the others from getting fresh data.
+   */
+  const safely = (panelName: string, update: () => void) => {
+    try {
+      update();
+    } catch (err) {
+      console.error(`${panelName} panel failed to update:`, err);
+    }
+  };
+
+  subscribeToTeams((next) => {
+    teams = next;
+    safely("Teams", () => updateTeamsPanel(teamsPanel, teams));
+    if (match) safely("Match", () => updateMatchPanel(matchPanel, teams, match!));
   });
+
+  subscribeToLive((data) => {
+    match = data.match;
+    safely("Player intro", () => updatePresentationPanel(presentationPanel, data));
+    safely("Preview", () => updatePreviewPanel(data.match.program));
+    safely("Score", () => updateScorePanel(scorePanel, data));
+    safely("Clock", () => updateClockPanel(clockPanel, data.match.clock));
+    safely("Match", () => updateMatchPanel(matchPanel, teams, data.match));
+    safely("Scenes", () => updateScenePanel(scenePanel, data));
+    safely("Lineup", () => updateLineupPanel(lineupPanel, data));
+    safely("Actions", () => updateActionsPanel(data.match));
+    safely("Scene settings", () => updateSceneSettingsPanel(sceneSettingsPanel, data.scenes));
+
+    statusDot.classList.toggle("live", data.match.clock.running);
+    statusLabel.classList.toggle("live", data.match.clock.running);
+    statusLabel.textContent = data.match.clock.running ? "Live" : "Paused";
+  });
+
+  onPageShown((page) => {
+    if (page === "setup") showSceneSettings(sceneSettingsPanel);
+  });
+  initRouter();
 }
 
 onAuthChange((user) => {

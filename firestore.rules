@@ -1,9 +1,16 @@
 rules_version = '2';
 
-// The overlay (OBS Browser Source) has no login, so anyone can READ the match.
+// The output page (overlay) has no login, so anyone can READ.
 // Only a signed-in user (the control dashboard) can WRITE.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Live match, teams, players and scene templates.
+    match /workspaces/{workspaceId}/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Pre-workspace match doc, kept so older deployed overlays still load.
     match /matches/{matchId} {
       allow read: if true;
       allow write: if request.auth != null;

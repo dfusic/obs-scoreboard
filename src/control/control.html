@@ -41,20 +41,41 @@
         <div class="top-bar-divider"></div>
         <span class="top-bar-title">Scoreboard Control</span>
         <span class="env-badge" data-env-badge hidden></span>
+        <nav class="nav">
+          <a href="#/live" data-nav="live">Live</a>
+          <a href="#/setup" data-nav="setup">Setup</a>
+        </nav>
         <div class="top-bar-spacer"></div>
+        <span id="save-error" class="save-error" role="alert" hidden></span>
         <button id="sign-out-btn" type="button" class="btn-ghost">Sign out</button>
       </header>
 
-      <div class="layout">
+      <!-- Live: run the match and switch what's on air. -->
+      <div data-page="live" class="layout">
         <div class="column">
-          <div id="preview-panel" class="panel preview"></div>
+          <div id="preview-panel" class="panel"></div>
           <div id="score-panel" class="two-up"></div>
           <div id="clock-panel" class="panel"></div>
+          <div id="lineup-panel" class="panel"></div>
         </div>
 
         <div class="column">
-          <div id="logo-panel" class="column"></div>
+          <div id="match-panel" class="panel"></div>
+          <div id="presentation-panel" class="panel"></div>
+          <div id="scene-panel" class="panel"></div>
           <div id="actions-panel" class="panel"></div>
+        </div>
+      </div>
+
+      <!-- Setup: teams, squads and scene templates. -->
+      <div data-page="setup" class="layout layout-even" hidden>
+        <div class="column">
+          <div id="teams-panel" class="panel"></div>
+          <div id="roster-panel" class="panel"></div>
+        </div>
+
+        <div class="column">
+          <div id="scene-settings-panel" class="panel"></div>
         </div>
       </div>
     </section>

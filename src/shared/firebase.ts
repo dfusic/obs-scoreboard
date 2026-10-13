@@ -28,6 +28,9 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 
 if (import.meta.env.VITE_USE_EMULATORS === "true") {
-  connectFirestoreEmulator(db, "127.0.0.1", 8080);
-  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  // Ports match firebase.json; override to run a second local stack side by side.
+  const firestorePort = Number(import.meta.env.VITE_FIRESTORE_EMULATOR_PORT ?? 8080);
+  const authPort = Number(import.meta.env.VITE_AUTH_EMULATOR_PORT ?? 9099);
+  connectFirestoreEmulator(db, "127.0.0.1", firestorePort);
+  connectAuthEmulator(auth, `http://127.0.0.1:${authPort}`, { disableWarnings: true });
 }
