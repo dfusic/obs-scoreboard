@@ -1,8 +1,10 @@
 import { resolveLineup } from "./lineup";
+import { DEFAULT_GRAPHICS } from "./templates";
 import type { DataStore } from "./store";
 import {
   defaultSceneConfigs,
   SIDES,
+  type GraphicsSettings,
   type MatchState,
   type Player,
   type SceneConfigs,
@@ -21,6 +23,8 @@ export interface LiveData {
   /** Players ticked as playing, in presentation order. */
   lineups: Record<Side, Player[]>;
   scenes: SceneConfigs;
+  /** Scoreboard template and colours. */
+  graphics: GraphicsSettings;
 }
 
 /** Players available to scenes and pickers: the lineup once one is picked, else the whole squad. */
@@ -35,12 +39,14 @@ export function sidesWithPlayers(match: MatchState): Side[] {
 
 /**
  * Subscribes to the live match plus only the data it references: the two selected
- * teams, their players (re-subscribed when the teams change) and the scene templates.
+ * teams, their players (re-subscribed when the teams change), the scene templates and
+ * the scoreboard graphics.
  * Calls back on every change once the match has loaded.
  */
 export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => void): () => void {
   let match: MatchState | null = null;
   let scenes = defaultSceneConfigs();
+  let graphics = DEFAULT_GRAPHICS;
   const teams: Record<Side, TeamProfile | null> = { home: null, away: null };
   let players: Player[] = [];
 
@@ -65,6 +71,7 @@ export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => 
       squads: { home: squad("home"), away: squad("away") },
       lineups: { home: lineup("home"), away: lineup("away") },
       scenes,
+      graphics,
     });
   };
 
@@ -115,9 +122,15 @@ export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => 
     emit();
   });
 
+  const unsubGraphics = store.graphics.subscribe((next) => {
+    graphics = next;
+    emit();
+  });
+
   return () => {
     unsubMatch();
     unsubScenes();
+    unsubGraphics();
     teamSubs.forEach((unsub) => unsub());
     playersSub();
   };

@@ -1,9 +1,10 @@
 import { formatClock } from "@shared/clock";
 import { matchPlayers, type LiveData } from "@shared/liveFeed";
 import { goalMinute } from "@shared/program";
+import { scoreboardTemplate } from "@shared/templates";
 import { useTicking } from "@shared/react/hooks";
-import type { ClockState, Player, SceneConfig, SceneType, Side, TeamProfile } from "@shared/types";
-import { memo, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import type { ClockState, Player, ScoreboardColors, SceneConfig, SceneType, Side, TeamProfile } from "@shared/types";
+import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 /** What a scene is about, after applying any preview override. */
 export interface SceneTarget {
@@ -143,7 +144,7 @@ function IntroName({ name }: { name: string }) {
 function PresentationScene({ data, config, target }: SceneProps) {
   const team = data.teams[target.side];
   const { player } = target;
-  // A custom background image (Setup > Scenes) replaces the built-in striped one.
+  // A custom background image (Graphics page) replaces the built-in striped one.
   return (
     <div
       key={player?.id ?? ""}
@@ -154,6 +155,61 @@ function PresentationScene({ data, config, target }: SceneProps) {
       {team?.logo && <img className="intro-crest" src={team.logo} alt="" />}
       <IntroName name={player?.name ?? ""} />
       {player?.photo && <img className="intro-photo" src={player.photo} alt="" />}
+    </div>
+  );
+}
+
+/** Marquee speed, in screen widths per second. */
+const MARQUEE_SPEED = 0.25;
+
+/**
+ * "Large text" welcome: the title (and subtitle) in screen-high letters, scrolling left
+ * to right on an endless loop. The track holds two identical groups and moves by one
+ * group's width per cycle, so the loop is seamless. Each group repeats the phrase enough
+ * times to cover the screen, and the duration follows its width so the speed is constant.
+ */
+function Marquee({ title, subtitle }: { title: string; subtitle: string }) {
+  const phraseRef = useRef<HTMLSpanElement>(null);
+  const [layout, setLayout] = useState({ repeats: 1, durationS: 10 });
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const width = phraseRef.current?.offsetWidth ?? 0;
+      if (!width) return;
+      const repeats = Math.max(1, Math.ceil(window.innerWidth / width));
+      const durationS = (repeats * width) / (window.innerWidth * MARQUEE_SPEED);
+      setLayout((prev) => (prev.repeats === repeats && Math.abs(prev.durationS - durationS) < 0.01 ? prev : { repeats, durationS }));
+    };
+    measure();
+    void document.fonts.ready.then(measure);
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [title, subtitle]);
+
+  const phrase = (key: number, ref?: typeof phraseRef) => (
+    <span key={key} ref={ref} className="marquee-phrase">
+      {title}
+      {subtitle && (
+        <>
+          <span className="marquee-sep" />
+          <span className="marquee-sub">{subtitle}</span>
+        </>
+      )}
+      <span className="marquee-sep" />
+    </span>
+  );
+  const group = (copy: number) => (
+    <div className="marquee-group" aria-hidden={copy > 0 || undefined}>
+      {Array.from({ length: layout.repeats }, (_, i) => phrase(i, copy === 0 && i === 0 ? phraseRef : undefined))}
+    </div>
+  );
+
+  return (
+    <div className="marquee">
+      <div className="marquee-track" style={{ "--marquee-duration": `${layout.durationS}s` } as CSSProperties}>
+        {group(0)}
+        {group(1)}
+      </div>
     </div>
   );
 }
@@ -170,10 +226,50 @@ const ScoreboardClock = memo(function ScoreboardClock({ clock }: { clock: ClockS
   );
 });
 
+/** Template colours as CSS custom properties (see the scoreboard rules in overlay.css). */
+function scoreboardVars(colors: ScoreboardColors): CSSProperties {
+  return {
+    "--sb-score": colors.score,
+    "--sb-names": colors.names,
+    "--sb-timer": colors.timer,
+    "--sb-accent": colors.accent,
+  } as CSSProperties;
+}
+
+const BarClock = memo(function BarClock({ clock }: { clock: ClockState }) {
+  return <div className="bar-clock">{useTicking((now) => formatClock(clock, now))}</div>;
+});
+
+function BarSide({ data, side }: { data: LiveData; side: Side }) {
+  const team = data.teams[side];
+  return (
+    <div className="bar-side">
+      <img className="bar-logo" src={team?.logo ?? undefined} alt="" />
+      <div className="bar-score">{data.match.score[side]}</div>
+      <div className="bar-name">{teamName(team, side)}</div>
+    </div>
+  );
+}
+
+/** The scoreboard in the chosen template's layout (shared/templates.ts) and colours. */
 function ScoreboardScene({ data }: SceneProps) {
   const { score } = data.match;
+  const { colors } = data.graphics;
+  if (scoreboardTemplate(data.graphics.template).layout === "bar") {
+    return (
+      <div className="sb-bar" style={scoreboardVars(colors)}>
+        <BarSide data={data} side="home" />
+        <div className="bar-center">
+          <BarClock clock={data.match.clock} />
+          <div className="bar-rule" />
+          <div className="bar-half">{data.match.half === 1 ? "1st half" : "2nd half"}</div>
+        </div>
+        <BarSide data={data} side="away" />
+      </div>
+    );
+  }
   return (
-    <>
+    <div style={scoreboardVars(colors)}>
       <ScoreboardClock clock={data.match.clock} />
       <img className="logo logo-home" src={data.teams.home?.logo ?? undefined} alt="" />
       <img className="logo logo-away" src={data.teams.away?.logo ?? undefined} alt="" />
@@ -182,7 +278,7 @@ function ScoreboardScene({ data }: SceneProps) {
         <span className="score-sep" />
         <span className="score-num">{score.away}</span>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -213,16 +309,19 @@ function ResultScene({ data, config }: SceneProps) {
 export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
   scoreboard: ScoreboardScene,
 
-  welcome: ({ data, config }) => (
-    <div className="card welcome">
-      <Header config={config} />
-      <div className="matchup">
-        <TeamBlock data={data} side="home" />
-        <div className="vs">VS</div>
-        <TeamBlock data={data} side="away" />
+  welcome: ({ data, config }) =>
+    config.template === "largeText" ? (
+      <Marquee title={config.title} subtitle={config.subtitle} />
+    ) : (
+      <div className="card welcome">
+        <Header config={config} />
+        <div className="matchup">
+          <TeamBlock data={data} side="home" />
+          <div className="vs">VS</div>
+          <TeamBlock data={data} side="away" />
+        </div>
       </div>
-    </div>
-  ),
+    ),
 
   presentation: PresentationScene,
 

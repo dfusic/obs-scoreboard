@@ -3,6 +3,7 @@ import {
   adjustClockMs,
   computeElapsedMs,
   formatClock,
+  halfStartClock,
   parseClockInput,
   pauseClock,
   setClockElapsedMs,
@@ -78,5 +79,13 @@ describe("parseClockInput", () => {
   it("rejects garbage and seconds >= 60", () => {
     expect(parseClockInput("abc")).toBeNull();
     expect(parseClockInput("10:75")).toBeNull();
+  });
+});
+
+describe("halfStartClock", () => {
+  it("stops the clock at 00:00 for the 1st half and 45:00 for the 2nd", () => {
+    expect(formatClock(halfStartClock(1), 0)).toBe("00:00");
+    expect(formatClock(halfStartClock(2), 0)).toBe("45:00");
+    expect(halfStartClock(2).running).toBe(false);
   });
 });

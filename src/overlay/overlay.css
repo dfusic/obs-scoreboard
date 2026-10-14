@@ -36,8 +36,8 @@ body {
   justify-content: center;
   box-sizing: border-box;
   padding: 1%;
-  background: #fff;
-  color: #000;
+  background: var(--sb-accent, #fff);
+  color: var(--sb-timer, #000);
   border-radius: 0 0 2vw 2vw;
   font-size: 11.6vw;
   line-height: 1;
@@ -52,8 +52,8 @@ body {
   width: 2.2vw;
   height: 6.4vw;
   background:
-    linear-gradient(#000, #000) top / 100% 34% no-repeat,
-    linear-gradient(#000, #000) bottom / 100% 34% no-repeat;
+    linear-gradient(currentColor, currentColor) top / 100% 34% no-repeat,
+    linear-gradient(currentColor, currentColor) bottom / 100% 34% no-repeat;
 }
 
 .logo {
@@ -87,19 +87,97 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1.6vw;
-  color: #fff;
+  color: var(--sb-score, #fff);
   font-size: 22vw;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
-/* The colon from the design: two light-grey squares. */
+/* The colon from the design: two squares a shade darker than the digits
+   (brightness 0.863 turns white into the design's #dcdcdc). */
 .score-sep {
   width: 3vw;
   height: 10vw;
   background:
-    linear-gradient(#dcdcdc, #dcdcdc) top / 100% 30% no-repeat,
-    linear-gradient(#dcdcdc, #dcdcdc) bottom / 100% 30% no-repeat;
+    linear-gradient(currentColor, currentColor) top / 100% 30% no-repeat,
+    linear-gradient(currentColor, currentColor) bottom / 100% 30% no-repeat;
+  filter: brightness(0.863);
+}
+
+/* "Bar" scoreboard templates (Graphics page): crest, score and name per side,
+   timer and half in the middle, on the template's background colour. */
+.sb-bar {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  padding: 0 5vw;
+}
+
+.bar-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6vw;
+  min-width: 0;
+}
+
+.bar-logo {
+  width: 12vw;
+  height: 12vw;
+  object-fit: contain;
+}
+
+.bar-logo:not([src]) {
+  visibility: hidden;
+}
+
+.bar-score {
+  color: var(--sb-score);
+  font-size: 16vw;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-name {
+  max-width: 100%;
+  color: var(--sb-names);
+  font-size: 3.2vw;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2vw;
+  padding: 0 3vw;
+}
+
+.bar-clock {
+  color: var(--sb-timer);
+  font-size: 9vw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-rule {
+  width: 100%;
+  height: 0.3vw;
+  background: var(--sb-accent);
+}
+
+.bar-half {
+  color: var(--sb-accent);
+  font-size: 2.6vw;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* ---------- scenes ----------
@@ -119,7 +197,8 @@ body.has-bg-image .bg-image {
   display: block;
 }
 
-body.has-bg-image .bg-video {
+body.has-bg-image .bg-video,
+body.has-bg-color .bg-video {
   visibility: hidden;
 }
 
@@ -203,6 +282,61 @@ body.has-bg-image .bg-video {
   line-height: 1;
   text-transform: uppercase;
   text-align: center;
+}
+
+/* Welcome "Large text": screen-high letters scrolling left to right, on repeat.
+   The track is two identical groups; moving it by one group (50%) loops seamlessly. */
+.marquee {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 10s) linear infinite;
+  will-change: transform;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.marquee-phrase {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 52vw;
+  line-height: 0.82;
+  text-transform: uppercase;
+  font-variation-settings: "opsz" 72;
+}
+
+.marquee-sub {
+  color: var(--accent);
+}
+
+.marquee-sep {
+  width: 6vw;
+  height: 6vw;
+  margin: 0 7vw;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
 }
 
 .vs {

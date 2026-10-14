@@ -5,7 +5,7 @@ import { createContext, useContext, type ReactNode } from "react";
 
 const TeamsContext = createContext<TeamProfile[]>([]);
 
-/** All teams (for pickers and Setup), subscribed once for the dashboard. */
+/** All teams (for pickers and the Teams page), subscribed once for the dashboard. */
 export function TeamsProvider({ children }: { children: ReactNode }) {
   const store = useStore();
   const teams = useSubscription<TeamProfile[]>((cb) => store.teams.subscribeAll(cb), [], [store]);

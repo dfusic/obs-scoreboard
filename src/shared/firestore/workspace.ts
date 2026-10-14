@@ -16,6 +16,7 @@ export const playersCol = () => collection(db, ...root, "players");
 export const playerRef = (id: string) => doc(db, ...root, "players", id);
 export const scenesCol = () => collection(db, ...root, "scenes");
 export const sceneRef = (type: string) => doc(db, ...root, "scenes", type);
+export const graphicsRef = () => doc(db, ...root, "settings", "graphics");
 
 /** onSnapshot error handler. A failed listener stops for good, so at least make it visible. */
 export const logSubscriptionError = (what: string) => (err: Error) =>

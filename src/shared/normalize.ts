@@ -1,8 +1,10 @@
+import { sceneTemplateId, scoreboardTemplate } from "./templates";
 import {
   createInitialMatchState,
   defaultSceneConfigs,
   NEW_TEAM,
   SCENE_TYPES,
+  type GraphicsSettings,
   type MatchState,
   type Player,
   type PlayerFields,
@@ -37,6 +39,7 @@ export function normalizeMatch(data: Partial<MatchState> | undefined): MatchStat
     awayPlayers: data?.awayPlayers ?? initial.awayPlayers,
     goals: Array.isArray(data?.goals) ? data.goals.filter((g) => isSide(g?.side)) : [],
     program: SCENE_TYPES.includes(program.scene) ? program : initial.program,
+    half: data?.half === 2 ? 2 : 1,
   };
 }
 
@@ -55,9 +58,25 @@ export function normalizeScenes(stored: Iterable<[string, Partial<SceneConfig>]>
     if ((SCENE_TYPES as readonly string[]).includes(id)) {
       const type = id as SceneType;
       scenes[type] = { ...scenes[type], ...data };
+      scenes[type].template = sceneTemplateId(type, scenes[type].template);
     }
   }
   return scenes;
+}
+
+const isColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+
+/** Stored colours over the template's defaults; an unknown template falls back to Classic. */
+export function normalizeGraphics(data: Partial<GraphicsSettings> | undefined): GraphicsSettings {
+  const template = scoreboardTemplate(typeof data?.template === "string" ? data.template : "");
+  const colors = { ...template.colors };
+  const stored = (data?.colors ?? {}) as Record<string, unknown>;
+  for (const key of Object.keys(colors) as (keyof typeof colors)[]) {
+    const value = stored[key];
+    if (isColor(value)) colors[key] = value;
+    else if (key === "background" && value === null) colors.background = null;
+  }
+  return { template: template.id, colors };
 }
 
 /** Squad order (outside a match lineup): by name. */

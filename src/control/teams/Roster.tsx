@@ -1,6 +1,6 @@
 import { useSubscription } from "@shared/react/hooks";
 import { useStore } from "@shared/react/store";
-import type { Player, TeamProfile } from "@shared/types";
+import type { Player } from "@shared/types";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { nameFromFileName, PHOTO_IMAGE, processImage } from "../images";
 import {
@@ -11,9 +11,6 @@ import {
   hiddenFileInput,
   Hint,
   ICON,
-  Panel,
-  PanelBody,
-  PanelTitle,
   Thumb,
   UploadButton,
   useImageUpload,
@@ -28,18 +25,8 @@ const photoSlot = cn(
 );
 const playerRow = "grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2";
 
-export function RosterPanel({ team }: { team: TeamProfile | null }) {
-  return (
-    <Panel>
-      <PanelTitle>{team ? `Squad · ${team.name}` : "Squad"}</PanelTitle>
-      <PanelBody>
-        {team ? <Roster key={team.id} teamId={team.id} /> : <Hint>Pick or add a team to manage its players.</Hint>}
-      </PanelBody>
-    </Panel>
-  );
-}
-
-function Roster({ teamId }: { teamId: string }) {
+/** A team's squad: add players (one by one or from photos), rename, replace photos, delete. */
+export function Roster({ teamId }: { teamId: string }) {
   const store = useStore();
   const players = useSubscription<Player[]>((cb) => store.players.subscribe([teamId], cb), [], [store, teamId]);
   const [status, setStatus] = useState<string | null>(null);
@@ -67,6 +54,9 @@ function Roster({ teamId }: { teamId: string }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <div className="font-condensed text-xs font-bold tracking-[0.1em] text-soft uppercase">
+        Squad · {players.length} {players.length === 1 ? "player" : "players"}
+      </div>
       <AddPlayerForm teamId={teamId} onStatus={setStatus} />
       <UploadButton accept={PHOTO_ACCEPT} multiple onChange={addFromPhotos}>
         Add players from photos
