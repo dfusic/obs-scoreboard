@@ -1,4 +1,4 @@
-import type { ClockState } from "./types";
+import type { ClockState, Half } from "./types";
 
 /** Elapsed ms, computed locally from stored state. */
 export function computeElapsedMs(clock: ClockState, nowMs: number): number {
@@ -50,4 +50,12 @@ export function setClockElapsedMs(clock: ClockState, elapsedMs: number, nowMs: n
 
 export function adjustClockMs(clock: ClockState, deltaMs: number, nowMs: number): ClockState {
   return setClockElapsedMs(clock, computeElapsedMs(clock, nowMs) + deltaMs, nowMs);
+}
+
+/** Where the clock starts each half: the 2nd half counts on from 45:00. */
+export const HALF_START_MS: Record<Half, number> = { 1: 0, 2: 45 * 60_000 };
+
+/** The clock, stopped at the start of the given half. */
+export function halfStartClock(half: Half): ClockState {
+  return { running: false, startEpochMs: null, accumulatedMs: HALF_START_MS[half] };
 }

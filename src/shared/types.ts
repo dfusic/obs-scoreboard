@@ -72,6 +72,8 @@ export interface SceneConfig {
   background: string | null;
   /** Auto-return to the scoreboard after this long; null stays on air until the next Take. */
   durationMs: number | null;
+  /** Design of the scene, from SCENE_TEMPLATES (templates.ts); "standard" where a scene has one design. */
+  template: string;
 }
 
 /** What the output page shows. Derived locally like the clock: see program.ts. */
@@ -83,6 +85,8 @@ export interface ProgramState {
   startedAtMs: number;
   autoReturnMs: number | null;
 }
+
+export type Half = 1 | 2;
 
 export interface GoalEvent {
   side: Side;
@@ -103,6 +107,8 @@ export interface MatchState {
   awayPlayers: boolean;
   goals: GoalEvent[];
   program: ProgramState;
+  /** Half being played: labels the scoreboard, and End half takes half time or full time. */
+  half: Half;
 }
 
 export function createInitialProgram(): ProgramState {
@@ -118,6 +124,7 @@ export function createInitialMatchState(): MatchState {
     awayPlayers: false,
     goals: [],
     program: createInitialProgram(),
+    half: 1,
   };
 }
 
@@ -128,12 +135,29 @@ export function defaultSceneConfigs(): SceneConfigs {
 }
 
 export const DEFAULT_SCENE_CONFIGS: SceneConfigs = {
-  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, durationMs: null },
-  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, durationMs: null },
-  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, durationMs: null },
-  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, durationMs: 15_000 },
-  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, durationMs: 10_000 },
-  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, durationMs: null },
-  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, durationMs: null },
-  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, durationMs: null },
+  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, durationMs: null, template: "standard" },
+  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, durationMs: null, template: "standard" },
+  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, durationMs: null, template: "standard" },
+  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, durationMs: 15_000, template: "standard" },
+  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, durationMs: 10_000, template: "standard" },
+  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, durationMs: null, template: "standard" },
+  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, durationMs: null, template: "standard" },
+  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, durationMs: null, template: "standard" },
 };
+
+/** Scoreboard colours. Which ones a layout uses, and their labels, are in templates.ts. */
+export interface ScoreboardColors {
+  /** Solid background; null plays the default background video. */
+  background: string | null;
+  score: string;
+  names: string;
+  timer: string;
+  accent: string;
+}
+
+/** The scoreboard's look, stored in workspaces/{ws}/settings/graphics. */
+export interface GraphicsSettings {
+  /** A SCOREBOARD_TEMPLATES id (templates.ts). */
+  template: string;
+  colors: ScoreboardColors;
+}

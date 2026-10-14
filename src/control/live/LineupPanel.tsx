@@ -139,7 +139,7 @@ function LineupSide({ side }: { side: Side }) {
           [...lineup.map((p, i) => row(p, i)), ...bench.map((p) => row(p, null))]
         ) : (
           <li>
-            <Hint>No players in this squad yet. Add them on the Setup page.</Hint>
+            <Hint>No players in this squad yet. Add them on the Teams page.</Hint>
           </li>
         )}
       </ol>

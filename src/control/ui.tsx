@@ -39,6 +39,26 @@ export function PanelBody({ className, children }: { className?: string; childre
   return <div className={cn("flex flex-col gap-3.5 px-[18px] py-4", className)}>{children}</div>;
 }
 
+/** A page's title bar: heading and subtitle on the left, `children` (actions, status) on the right. */
+export function PageHeader({ title, sub, children }: { title: ReactNode; sub?: ReactNode; children?: ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-6 py-4 max-[480px]:px-4">
+      <div className="min-w-0">
+        <h1 className="m-0 font-condensed text-2xl leading-tight font-black tracking-[0.04em] text-white uppercase">
+          {title}
+        </h1>
+        {sub && <p className="m-0 mt-0.5 text-[13px] text-dim">{sub}</p>}
+      </div>
+      <Spacer />
+      {children}
+    </header>
+  );
+}
+
+export function PageBody({ className, children }: { className?: string; children: ReactNode }) {
+  return <div className={cn("flex flex-col gap-4 px-6 py-5 max-[480px]:px-4", className)}>{children}</div>;
+}
+
 export function Row({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cn("flex flex-wrap items-center gap-3", className)}>{children}</div>;
 }
@@ -72,6 +92,8 @@ export function ErrorText({ children }: { children: ReactNode }) {
 
 const BUTTON_VARIANTS = {
   start: "h-[52px] min-w-[130px] bg-success px-7 text-[15px] text-black",
+  end: "h-[52px] min-w-[130px] bg-danger px-7 text-[15px] text-white",
+  primary: "inline-flex h-10 items-center gap-[7px] bg-accent px-[18px] text-[13px] text-white",
   ghost: "h-9 border border-line-strong bg-transparent px-4 text-xs text-muted hover:bg-control hover:opacity-100",
   danger:
     "h-11 border border-line-strong bg-transparent px-4 text-[13px] text-danger hover:bg-danger hover:text-white hover:opacity-100",
@@ -164,6 +186,14 @@ export const UploadIcon = () => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="17 8 12 3 7 8" />
     <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+);
+
+export const PlusIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+    strokeLinecap="round" aria-hidden="true">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 

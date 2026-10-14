@@ -1,6 +1,8 @@
 import type {
   ClockState,
   GoalEvent,
+  GraphicsSettings,
+  Half,
   MatchState,
   Player,
   PlayerFields,
@@ -35,6 +37,7 @@ export interface DataStore {
   readonly teams: TeamsApi;
   readonly players: PlayersApi;
   readonly scenes: ScenesApi;
+  readonly graphics: GraphicsApi;
   readonly sync: SyncApi;
 }
 
@@ -69,6 +72,10 @@ export interface MatchApi {
   setLineup(side: Side, playerIds: string[]): Promise<void>;
   setAwayPlayers(enabled: boolean): Promise<void>;
   setProgram(program: ProgramState): Promise<void>;
+  /** Switches to the given half with the clock set for it (see halfStartClock), in one write. */
+  startHalf(half: Half, clock: ClockState): Promise<void>;
+  /** Stops the clock and, if given, puts `program` on air (half time / full time), in one write. */
+  endHalf(clock: ClockState, program: ProgramState | null): Promise<void>;
   /** Zeroes both scores and clears the goal list. */
   resetScores(): Promise<void>;
   /** Bumps the score, logs the goal and, if given, puts `program` on air, in one write. */
@@ -102,6 +109,13 @@ export interface ScenesApi {
   /** All scene templates, with defaults for any not customised yet. */
   subscribe(onChange: (scenes: SceneConfigs) => void): Unsubscribe;
   update(type: SceneType, fields: Partial<SceneConfig>): Promise<void>;
+}
+
+export interface GraphicsApi {
+  /** The scoreboard look, with defaults when it was never saved. */
+  subscribe(onChange: (graphics: GraphicsSettings) => void): Unsubscribe;
+  /** Replaces the scoreboard look; it shows on air at once. */
+  save(graphics: GraphicsSettings): Promise<void>;
 }
 
 /**

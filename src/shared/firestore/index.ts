@@ -1,6 +1,7 @@
 import { onSnapshot } from "firebase/firestore";
 import type { DataStore, SyncApi } from "../store/types";
 import { authApi } from "./auth";
+import { graphicsApi } from "./graphicsRepo";
 import { matchApi } from "./matchRepo";
 import { playersApi } from "./playerRepo";
 import { scenesApi } from "./sceneRepo";
@@ -30,5 +31,6 @@ export const firestoreStore: DataStore = {
   teams: teamsApi,
   players: playersApi,
   scenes: scenesApi,
+  graphics: graphicsApi,
   sync: syncApi,
 };

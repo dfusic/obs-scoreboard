@@ -38,7 +38,7 @@ function SideScore({ side }: { side: Side }) {
 
   return (
     <Panel>
-      <PanelTitle>{data.teams[side]?.name ?? label}</PanelTitle>
+      <PanelTitle>{data.teams[side]?.name ?? label} — Score</PanelTitle>
       <PanelBody>
         <Row className="flex-nowrap justify-between">
           <Button
@@ -87,7 +87,7 @@ function SideScore({ side }: { side: Side }) {
                   </button>
                 ))
               ) : (
-                <Hint>No players. Add them on the Setup page, then pick the lineup.</Hint>
+                <Hint>No players. Add them on the Teams page, then pick the lineup.</Hint>
               )}
             </div>
             <Row>

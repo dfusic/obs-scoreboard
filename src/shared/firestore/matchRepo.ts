@@ -59,6 +59,8 @@ export const matchApi: MatchApi = {
   setLineup: (side, playerIds) => updateMatch({ [`lineup.${side}`]: playerIds }),
   setAwayPlayers: (enabled) => updateMatch({ awayPlayers: enabled }),
   setProgram: (program) => updateMatch({ program }),
+  startHalf: (half, clock) => updateMatch({ half, clock }),
+  endHalf: (clock, program) => updateMatch({ clock, ...(program ? { program } : {}) }),
   resetScores: () => updateMatch({ score: { home: 0, away: 0 }, goals: [] }),
 
   // Goals carry their ms timestamp, so arrayUnion never merges two real goals.
