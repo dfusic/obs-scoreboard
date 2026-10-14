@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Control page design tokens. The output page doesn't use these (it has overlay.css). */
+@theme {
+  --color-page: #0a0c10;
+  --color-panel: #13161d;
+  /* Inset surfaces: inputs, thumbnails, pickers. */
+  --color-well: #0d0f14;
+  --color-control: #1e2330;
+  --color-control-hover: #262d3d;
+  --color-line: #1e2330;
+  --color-line-strong: #2e3348;
+  --color-line-hover: #4a5470;
+  --color-fg: #e8eaf0;
+  --color-soft: #aab2cc;
+  --color-muted: #7a84a0;
+  --color-dim: #5a6278;
+  --color-faint: #3a405a;
+  --color-accent: #3d8bff;
+  --color-danger: #e83a3a;
+  --color-success: #00d26a;
+  --color-warning: #f5a623;
+
+  --font-sans: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-condensed: "Barlow Condensed", "Arial Narrow", sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+}
+
+@layer base {
+  body {
+    @apply bg-page font-sans text-fg;
+  }
+
+  button {
+    @apply cursor-pointer rounded-sm font-condensed font-bold tracking-[0.08em] uppercase;
+    transition:
+      opacity 0.12s,
+      transform 0.08s,
+      background-color 0.12s;
+  }
+  button:hover {
+    opacity: 0.88;
+  }
+  button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  button:disabled {
+    @apply cursor-default opacity-35;
+  }
+
+  :where(button, input, select, a):focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  input[type="text"],
+  input[type="password"],
+  input[type="number"],
+  select {
+    @apply h-9 w-full rounded-sm border border-line-strong bg-well px-3 font-sans text-sm text-fg;
+  }
+
+  input[type="color"] {
+    @apply h-9 w-full cursor-pointer rounded-sm border border-line-strong bg-well p-0.5;
+  }
+
+  input[type="checkbox"] {
+    @apply size-4 cursor-pointer accent-accent;
+  }
+
+  code {
+    @apply text-[11px] text-soft;
+  }
+}

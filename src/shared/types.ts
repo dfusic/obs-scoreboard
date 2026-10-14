@@ -19,6 +19,16 @@ export interface TeamProfile {
   logo: string | null;
 }
 
+export type TeamFields = Omit<TeamProfile, "id">;
+
+export const NEW_TEAM: TeamFields = {
+  name: "New team",
+  shortName: "",
+  primaryColor: "#1e3a8a",
+  secondaryColor: "#ffffff",
+  logo: null,
+};
+
 /** A squad member, stored in workspaces/{ws}/players/{id}. Photo is an inline PNG data URL (transparent cut-outs). */
 export interface Player {
   id: string;
@@ -27,6 +37,8 @@ export interface Player {
   name: string;
   photo: string | null;
 }
+
+export type PlayerFields = Omit<Player, "id">;
 
 export const SCENE_TYPES = [
   "scoreboard",
@@ -109,7 +121,13 @@ export function createInitialMatchState(): MatchState {
   };
 }
 
-export const DEFAULT_SCENE_CONFIGS: Record<SceneType, SceneConfig> = {
+export type SceneConfigs = Record<SceneType, SceneConfig>;
+
+export function defaultSceneConfigs(): SceneConfigs {
+  return structuredClone(DEFAULT_SCENE_CONFIGS);
+}
+
+export const DEFAULT_SCENE_CONFIGS: SceneConfigs = {
   scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, durationMs: null },
   welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, durationMs: null },
   presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, durationMs: null },

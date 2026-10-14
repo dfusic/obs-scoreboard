@@ -1,3 +1,5 @@
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
@@ -8,6 +10,8 @@ const base = process.env.VITE_BASE_PATH ?? "/obs-scoreboard/";
 
 export default defineConfig({
   base,
+  // Tailwind only processes CSS that imports it (the control page); overlay.css stays plain CSS.
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@shared": resolve(__dirname, "src/shared"),
