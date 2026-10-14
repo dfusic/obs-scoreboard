@@ -37,12 +37,3 @@ export function fileToResizedDataUrl(
     img.src = objectUrl;
   });
 }
-
-/** Sets an <img> src only when it changed, so large data URLs aren't reloaded on every snapshot. */
-export function setImageSrc(img: HTMLImageElement, url: string | null): void {
-  if (url) {
-    if (img.getAttribute("src") !== url) img.src = url;
-  } else {
-    img.removeAttribute("src");
-  }
-}

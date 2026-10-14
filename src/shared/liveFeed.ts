@@ -1,9 +1,14 @@
 import { resolveLineup } from "./lineup";
-import { subscribeToMatch } from "./matchRepo";
-import { subscribeToPlayers } from "./playerRepo";
-import { defaultSceneConfigs, subscribeToScenes, type SceneConfigs } from "./sceneRepo";
-import { subscribeToTeam } from "./teamRepo";
-import { SIDES, type MatchState, type Player, type Side, type TeamProfile } from "./types";
+import type { DataStore } from "./store";
+import {
+  defaultSceneConfigs,
+  SIDES,
+  type MatchState,
+  type Player,
+  type SceneConfigs,
+  type Side,
+  type TeamProfile,
+} from "./types";
 
 /** Everything needed to render or operate the live match. */
 export interface LiveData {
@@ -33,7 +38,7 @@ export function sidesWithPlayers(match: MatchState): Side[] {
  * teams, their players (re-subscribed when the teams change) and the scene templates.
  * Calls back on every change once the match has loaded.
  */
-export function subscribeToLive(onChange: (data: LiveData) => void): () => void {
+export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => void): () => void {
   let match: MatchState | null = null;
   let scenes = defaultSceneConfigs();
   const teams: Record<Side, TeamProfile | null> = { home: null, away: null };
@@ -70,7 +75,7 @@ export function subscribeToLive(onChange: (data: LiveData) => void): () => void 
       const id = m.teams[side];
       return id
         ? [
-            subscribeToTeam(id, (team) => {
+            store.teams.subscribe(id, (team) => {
               teams[side] = team;
               emit();
             }),
@@ -82,13 +87,13 @@ export function subscribeToLive(onChange: (data: LiveData) => void): () => void 
   const resubscribePlayers = (teamIds: string[]) => {
     playersSub();
     players = [];
-    playersSub = subscribeToPlayers(teamIds, (list) => {
+    playersSub = store.players.subscribe(teamIds, (list) => {
       players = list;
       emit();
     });
   };
 
-  const unsubMatch = subscribeToMatch((next) => {
+  const unsubMatch = store.match.subscribe((next) => {
     match = next;
     const nextTeamsKey = `${next.teams.home}|${next.teams.away}`;
     if (nextTeamsKey !== teamsKey) {
@@ -105,7 +110,7 @@ export function subscribeToLive(onChange: (data: LiveData) => void): () => void 
     emit();
   });
 
-  const unsubScenes = subscribeToScenes((next) => {
+  const unsubScenes = store.scenes.subscribe((next) => {
     scenes = next;
     emit();
   });
