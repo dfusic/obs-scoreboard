@@ -1,7 +1,7 @@
 import { useLiveData, useStore } from "@shared/react/store";
 import { SCENE_TEMPLATES } from "@shared/templates";
 import { SCENE_LABELS, type SceneConfig, type SceneType } from "@shared/types";
-import { BACKGROUND_IMAGE } from "../images";
+import { BACKGROUND_IMAGE, LOGO_IMAGE } from "../images";
 import { TemplateOption, VIDEO_THUMB_BG } from "./ScoreboardTemplates";
 import {
   Button,
@@ -108,6 +108,62 @@ export function SceneSettingsPanel({ type }: { type: SceneType }) {
         ) : (
           <Hint>Changes save as you go and apply wherever this scene is shown.</Hint>
         )}
+      </PanelBody>
+    </Panel>
+  );
+}
+
+/**
+ * The competition shown in the middle of the Semafor scoreboard: a logo, or two lines
+ * of text without one. Stored on the scoreboard scene (logo, title, subtitle).
+ */
+export function CompetitionPanel() {
+  const store = useStore();
+  const config = useLiveData().scenes.scoreboard;
+  const save = (fields: Partial<SceneConfig>) => void store.scenes.update("scoreboard", fields);
+  const upload = useImageUpload(LOGO_IMAGE, (logo) => store.scenes.update("scoreboard", { logo }));
+
+  return (
+    <Panel>
+      <PanelTitle>Competition</PanelTitle>
+      <PanelBody>
+        <Field label="Logo">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-[100px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line-strong bg-well text-faint">
+              <Thumb url={config.logo} className="size-full object-contain" />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <UploadButton onChange={upload.onChange}>Upload logo</UploadButton>
+              {config.logo && (
+                <Button variant="ghost" className="h-7 w-full text-[11px]" onClick={() => save({ logo: null })}>
+                  Remove logo
+                </Button>
+              )}
+            </div>
+          </div>
+          {upload.status && <ErrorText>{upload.status}</ErrorText>}
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Line 1" htmlFor="competition-title">
+            <CommitInput
+              id="competition-title"
+              type="text"
+              placeholder="e.g. Treća NL"
+              value={config.title}
+              onCommit={(v) => save({ title: v.trim() })}
+            />
+          </Field>
+          <Field label="Line 2" htmlFor="competition-subtitle">
+            <CommitInput
+              id="competition-subtitle"
+              type="text"
+              placeholder="e.g. Sjever"
+              value={config.subtitle}
+              onCommit={(v) => save({ subtitle: v.trim() })}
+            />
+          </Field>
+        </div>
+        <Hint>Shown above the score. A logo (transparent PNG) replaces the two lines of text. Saves at once.</Hint>
       </PanelBody>
     </Panel>
   );

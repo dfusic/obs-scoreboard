@@ -28,6 +28,37 @@ function TemplateThumb({ template, colors }: { template: ScoreboardTemplate; col
       </div>
     );
   }
+  if (template.layout === "semafor") {
+    return (
+      <div
+        className="relative size-full"
+        style={{
+          background: `repeating-linear-gradient(-35deg, ${colors.accent} 0 9px, transparent 9px 18px), ${background}`,
+        }}
+      >
+        <div className="absolute inset-x-[7%] inset-y-[9%] flex flex-col bg-black/75 backdrop-blur-[3px]">
+          <div className="flex flex-1 items-center justify-around border-b border-white/80">
+            <span className="font-condensed text-[8px] font-bold uppercase" style={{ color: colors.names }}>
+              Home
+            </span>
+            <span className={cn(thumbText, "text-[13px]")} style={{ color: colors.timer }}>
+              45:00
+            </span>
+            <span className="font-condensed text-[8px] font-bold uppercase" style={{ color: colors.names }}>
+              Away
+            </span>
+          </div>
+          <div className="flex flex-[2] items-center justify-around">
+            <span className="size-5 rounded-full bg-white/20" />
+            <span className={cn(thumbText, "text-[24px]")} style={{ color: colors.score }}>
+              2:1
+            </span>
+            <span className="size-5 rounded-full bg-white/20" />
+          </div>
+        </div>
+      </div>
+    );
+  }
   const side = (score: number, name: string) => (
     <div className="flex-1 text-center">
       <div className={cn(thumbText, "text-xl")} style={{ color: colors.score }}>

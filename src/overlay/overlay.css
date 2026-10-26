@@ -180,6 +180,194 @@ body {
   text-transform: uppercase;
 }
 
+/* "Semafor" scoreboard template, from the 16:9 design: red background with black
+   stripes turning slowly (SemaforStripes), under a panel that blurs them and darkens
+   them to the design's maroon (brightness 0.22 turns #d41228 into #2e0409). Vertical
+   sizes use vh, like the player intro, so the panel's contents fit any height. */
+.sb-semafor {
+  position: fixed;
+  inset: 0;
+}
+
+/* Paints the background colour itself, so the panel's backdrop blur sees it
+   during the scene's fade too (the fading section isolates its backdrop). */
+.sem-stripes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--sb-bg);
+  fill: none;
+  stroke: var(--sb-accent);
+  stroke-width: 112;
+}
+
+body.has-bg-image .sem-stripes {
+  display: none;
+}
+
+.sem-band {
+  transform-box: view-box;
+  animation: sem-turn linear infinite;
+  will-change: transform;
+}
+
+@keyframes sem-turn {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.sem-panel {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 8.7%;
+  bottom: 8.7%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: 23.1vh auto minmax(0, 1fr);
+  backdrop-filter: blur(1.6vw) brightness(0.22);
+  box-shadow: 0 0 2vh rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.sem-team {
+  align-self: center;
+  padding-top: 1.5vh;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--sb-names);
+}
+
+.sem-name {
+  font-size: 8vh;
+  font-weight: 700;
+  /* Room above the caps for accents (Č), which overflow: hidden would clip. */
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sem-city {
+  margin-top: 1.4vh;
+  font-size: 3.6vh;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.14em;
+}
+
+.sem-clock {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9vh;
+  padding-top: 1.5vh;
+  color: var(--sb-timer);
+  font-size: 16vh;
+  line-height: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+.sem-clock-sep {
+  width: 2.4vh;
+  height: 8.4vh;
+  background:
+    linear-gradient(currentColor, currentColor) top / 100% 28% no-repeat,
+    linear-gradient(currentColor, currentColor) bottom / 100% 28% no-repeat;
+}
+
+.sem-rule {
+  grid-column: 1 / -1;
+  height: 0.3vh;
+  background: var(--sb-names);
+}
+
+.sem-side,
+.sem-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+
+.sem-side {
+  padding-top: 8.2vh;
+  gap: 3.6vh;
+}
+
+.sem-crest {
+  height: 28.4vh;
+  max-width: 80%;
+  object-fit: contain;
+}
+
+.sem-crest:not([src]) {
+  visibility: hidden;
+}
+
+.sem-scorers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--sb-names);
+  font-size: 3.2vh;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sem-center {
+  padding-top: 6.6vh;
+}
+
+.sem-competition {
+  height: 9vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--sb-names);
+  font-size: 4vh;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sem-competition img {
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.sem-score {
+  margin-top: 5.2vh;
+  display: flex;
+  align-items: center;
+  gap: 4vh;
+  color: var(--sb-score);
+  font-size: 30vh;
+  line-height: 0.8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The colon from the design: two squares, see-through so they read grey. */
+.sem-score-sep {
+  width: 4.2vh;
+  height: 12.4vh;
+  background:
+    linear-gradient(currentColor, currentColor) top / 100% 27% no-repeat,
+    linear-gradient(currentColor, currentColor) bottom / 100% 27% no-repeat;
+  opacity: 0.55;
+}
+
 /* ---------- scenes ----------
    One <section data-layer> per scene; main.ts toggles .active. Non-scoreboard
    scenes draw on a solid card so they read on any background. */

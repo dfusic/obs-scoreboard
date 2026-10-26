@@ -11,6 +11,12 @@ createRoot(document.getElementById("root")!).render(
   </StoreProvider>,
 );
 
+// Double-click toggles fullscreen, for the overlay opened as a window on a second screen.
+document.addEventListener("dblclick", () => {
+  if (document.fullscreenElement) void document.exitFullscreen();
+  else void document.documentElement.requestFullscreen().catch(() => {});
+});
+
 // Half-speed background loop. Set after metadata loads so it survives loop restarts.
 const bgVideo = document.querySelector<HTMLVideoElement>(".bg-video")!;
 const BG_PLAYBACK_RATE = 0.5;
