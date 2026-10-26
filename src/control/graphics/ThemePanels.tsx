@@ -8,6 +8,7 @@ import {
   THEMES,
   type ThemeId,
 } from "@shared/themes";
+import { transition, TRANSITIONS } from "@shared/transitions";
 import type { GraphicsSettings, SchemeColors } from "@shared/types";
 import type { ReactNode } from "react";
 import { Button, cn, Hint, Panel, PanelBody, PanelTitle, Spacer } from "../ui";
@@ -258,7 +259,8 @@ export function LookPanel({
       <PanelBody>
         <div className="text-[13px] text-soft">
           Theme <strong className="text-fg">{t.name}</strong> · Colours{" "}
-          <strong className="text-fg">{scheme?.name ?? "Custom"}</strong>
+          <strong className="text-fg">{scheme?.name ?? "Custom"}</strong> · Transition{" "}
+          <strong className="text-fg">{transition(value.transition).name}</strong>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
           {THEME_COLORS[t.id].map(({ key, label }) => {
@@ -297,7 +299,7 @@ export function LookPanel({
           <Button variant="primary" className="h-11 flex-1 justify-center" disabled={!dirty} onClick={onSave}>
             Save &amp; put on air
           </Button>
-          <Button variant="ghost" className="h-11" onClick={() => onChange({ theme: t.id, colors: defaults })}>
+          <Button variant="ghost" className="h-11" onClick={() => onChange({ ...value, colors: defaults })}>
             Reset colours
           </Button>
           <Button variant="ghost" className="h-11" disabled={!dirty} onClick={onDiscard}>
@@ -308,6 +310,57 @@ export function LookPanel({
           Theme and colours apply to every scene. The preview shows your changes on whichever scene you pick above; the
           output changes only when you save. Reset colours goes back to the theme's own colour scheme.
         </Hint>
+      </PanelBody>
+    </Panel>
+  );
+}
+
+/**
+ * The transition between scenes, part of the look (draft until saved). Picking one, or
+ * Replay, plays it in the preview.
+ */
+export function TransitionPicker({
+  value,
+  onChange,
+  onReplay,
+}: {
+  value: GraphicsSettings;
+  onChange: (next: GraphicsSettings) => void;
+  onReplay: () => void;
+}) {
+  return (
+    <Panel>
+      <PanelTitle>
+        Transition
+        <Spacer />
+        <ScopeTag>All scenes</ScopeTag>
+      </PanelTitle>
+      <PanelBody>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-1.5">
+          {TRANSITIONS.map((t) => (
+            <Button
+              key={t.id}
+              variant="tab"
+              aria-pressed={t.id === value.transition}
+              className={cn("justify-center", t.id === value.transition && "border-accent bg-control-hover text-fg")}
+              onClick={() => {
+                onChange({ ...value, transition: t.id });
+                onReplay();
+              }}
+            >
+              {t.name}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Hint>
+            Plays whenever the output changes scene. Curtains use the colour scheme's colours and the team logo.
+          </Hint>
+          <Spacer />
+          <Button variant="ghost" onClick={onReplay}>
+            Replay
+          </Button>
+        </div>
       </PanelBody>
     </Panel>
   );

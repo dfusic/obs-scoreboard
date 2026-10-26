@@ -40,7 +40,8 @@ describe("themes", () => {
     const changed = themeSettings("dark");
     changed.colors.highlight = "#123456";
     expect(sameGraphics(themeSettings("dark"), changed)).toBe(false);
-    expect(sameGraphics(themeSettings("dark"), { theme: "semafor", colors: themeSettings("dark").colors })).toBe(false);
+    expect(sameGraphics(themeSettings("dark"), { ...themeSettings("dark"), theme: "semafor" })).toBe(false);
+    expect(sameGraphics(themeSettings("dark"), { ...themeSettings("dark"), transition: "pixels" })).toBe(false);
   });
 });
 
@@ -88,6 +89,12 @@ describe("normalizeGraphics", () => {
 
     const { highlight: _, ...oldClassic } = colorScheme("classic")!.colors;
     expect(normalizeGraphics({ template: "classic", colors: oldClassic } as never)).toEqual(DEFAULT_GRAPHICS);
+  });
+
+  it("keeps a known transition; old or unknown ones are Fade", () => {
+    expect(normalizeGraphics({ theme: "dark", transition: "iris" } as never).transition).toBe("iris");
+    expect(normalizeGraphics({ theme: "dark" } as never).transition).toBe("fade");
+    expect(normalizeGraphics({ theme: "dark", transition: "spin" } as never).transition).toBe("fade");
   });
 
   it("takes the theme's highlight for old custom colours", () => {

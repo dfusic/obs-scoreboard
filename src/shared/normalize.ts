@@ -1,4 +1,5 @@
 import { COLOR_SCHEMES, colorScheme, sameColors, sceneLayoutId, theme, themeColors, type SchemeColorKey } from "./themes";
+import { transition } from "./transitions";
 import {
   createInitialMatchState,
   defaultSceneConfigs,
@@ -96,7 +97,7 @@ export function normalizeGraphics(
     const match = COLOR_SCHEMES.find((s) => sameColors(s.colors, { ...colors, highlight: s.colors.highlight }));
     if (match) colors.highlight = match.colors.highlight;
   }
-  return { theme: t.id, colors };
+  return { theme: t.id, colors, transition: transition(data?.transition).id };
 }
 
 /** Squad order (outside a match lineup): by name. */
