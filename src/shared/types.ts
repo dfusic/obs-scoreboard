@@ -77,8 +77,6 @@ export interface SceneConfig {
   accentColor: string;
   /** Inline JPEG data URL; null shows the default background video. */
   background: string | null;
-  /** Auto-return to the scoreboard after this long; null stays on air until the next Take. */
-  durationMs: number | null;
   /** Inline PNG data URL. Scoreboard only: the competition logo on the Semafor theme. */
   logo: string | null;
   /**
@@ -88,14 +86,14 @@ export interface SceneConfig {
   layout: string;
 }
 
-/** What the output page shows. Derived locally like the clock: see program.ts. */
+/** What the output page shows; only a take changes it (see program.ts). */
 export interface ProgramState {
   scene: SceneType;
   /** Team the scene is about (goal, playerCard, lineup). */
   side: Side | null;
   playerId: string | null;
+  /** When it was taken. Nothing returns on its own: a scene stays on air until the next take. */
   startedAtMs: number;
-  autoReturnMs: number | null;
 }
 
 export type Half = 1 | 2;
@@ -119,12 +117,12 @@ export interface MatchState {
   awayPlayers: boolean;
   goals: GoalEvent[];
   program: ProgramState;
-  /** Half being played: labels the scoreboard, and End half takes half time or full time. */
+  /** Half being played: labels the scoreboard. */
   half: Half;
 }
 
 export function createInitialProgram(): ProgramState {
-  return { scene: "scoreboard", side: null, playerId: null, startedAtMs: 0, autoReturnMs: null };
+  return { scene: "scoreboard", side: null, playerId: null, startedAtMs: 0 };
 }
 
 export function createInitialMatchState(): MatchState {
@@ -147,14 +145,14 @@ export function defaultSceneConfigs(): SceneConfigs {
 }
 
 export const DEFAULT_SCENE_CONFIGS: SceneConfigs = {
-  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, durationMs: null, layout: "standard" },
-  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, layout: "standard" },
-  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, durationMs: null, layout: "standard" },
-  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, logo: null, durationMs: 15_000, layout: "standard" },
-  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, durationMs: 10_000, layout: "standard" },
-  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, durationMs: null, layout: "standard" },
-  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, layout: "standard" },
-  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, layout: "standard" },
+  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, layout: "standard" },
+  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard" },
+  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, layout: "standard" },
+  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, logo: null, layout: "standard" },
+  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, layout: "standard" },
+  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, layout: "standard" },
+  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard" },
+  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard" },
 };
 
 /**

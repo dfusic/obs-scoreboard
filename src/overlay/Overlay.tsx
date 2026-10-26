@@ -1,7 +1,5 @@
 import { matchPlayers, type LiveData } from "@shared/liveFeed";
 import { normalizeGraphics } from "@shared/normalize";
-import { activeScene } from "@shared/program";
-import { useTicking } from "@shared/react/hooks";
 import { useLiveData } from "@shared/react/store";
 import { SCENE_TYPES, type GraphicsSettings, type SceneType } from "@shared/types";
 import { useEffect, useState, type CSSProperties } from "react";
@@ -57,8 +55,7 @@ export function Overlay() {
   const previewGraphics = usePreviewGraphics();
   const data = previewGraphics ? { ...live, graphics: previewGraphics } : live;
   const previewScene = usePreviewScene();
-  const onAir = useTicking((now) => activeScene(data.match.program, now));
-  const scene = previewScene ?? onAir;
+  const scene = previewScene ?? data.match.program.scene;
   const target = sceneTarget(data, previewScene !== null);
 
   // A scene's own background image replaces the default video (static, in overlay.html).

@@ -1,30 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { activeScene, goalMinute, remainingMs, takeScene } from "./program";
+import { goalMinute, takeScene } from "./program";
 
-describe("takeScene / activeScene", () => {
-  it("stays on air without a duration", () => {
-    const program = takeScene("welcome", null, 1_000);
-    expect(activeScene(program, 1_000_000)).toBe("welcome");
-    expect(remainingMs(program, 1_000_000)).toBeNull();
-  });
-
-  it("returns to the scoreboard after its duration", () => {
-    const program = takeScene("goal", 15_000, 1_000, { side: "home", playerId: "p1" });
-    expect(activeScene(program, 15_999)).toBe("goal");
-    expect(remainingMs(program, 6_000)).toBe(10_000);
-    expect(activeScene(program, 16_000)).toBe("scoreboard");
-    expect(remainingMs(program, 20_000)).toBe(0);
-  });
-
-  it("keeps the target side and player", () => {
-    expect(takeScene("playerCard", 10_000, 0, { side: "away", playerId: "p9" })).toMatchObject({
+describe("takeScene", () => {
+  it("puts the scene on air with its target, stamped with the take time", () => {
+    expect(takeScene("playerCard", 1_000, { side: "away", playerId: "p9" })).toEqual({
+      scene: "playerCard",
       side: "away",
       playerId: "p9",
+      startedAtMs: 1_000,
     });
   });
 
-  it("never times out the scoreboard", () => {
-    expect(takeScene("scoreboard", 5_000, 0).autoReturnMs).toBeNull();
+  it("has no target by default", () => {
+    expect(takeScene("goal", 0)).toEqual({ scene: "goal", side: null, playerId: null, startedAtMs: 0 });
   });
 });
 

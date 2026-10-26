@@ -1,7 +1,6 @@
 import { stepLineup } from "@shared/lineup";
 import { matchPlayers, sidesWithPlayers, type LiveData } from "@shared/liveFeed";
-import { activeScene, takeScene } from "@shared/program";
-import { useTicking } from "@shared/react/hooks";
+import { takeScene } from "@shared/program";
 import { useLiveData, useStore } from "@shared/react/store";
 import type { ProgramState, Side } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
@@ -25,16 +24,16 @@ export function PresentationPanel({ active }: { active: boolean }) {
   const lastTake = useRef<ProgramState | null>(null);
 
   /** The intro's current player, if the intro is what's on air for this side. */
-  const currentPlayerId = (live: LiveData, nowMs: number): string | null => {
+  const currentPlayerId = (live: LiveData): string | null => {
     let program = live.match.program;
     if (lastTake.current && lastTake.current.startedAtMs > program.startedAtMs) program = lastTake.current;
-    return activeScene(program, nowMs) === "presentation" && program.side === side ? program.playerId : null;
+    return program.scene === "presentation" && program.side === side ? program.playerId : null;
   };
-  const currentId = useTicking((now) => currentPlayerId(data, now));
+  const currentId = currentPlayerId(data);
   const index = currentId ? players.findIndex((p) => p.id === currentId) : -1;
 
   const take = (playerId: string) => {
-    lastTake.current = takeScene("presentation", data.scenes.presentation.durationMs, Date.now(), { side, playerId });
+    lastTake.current = takeScene("presentation", Date.now(), { side, playerId });
     void store.match.setProgram(lastTake.current);
   };
 
@@ -42,7 +41,7 @@ export function PresentationPanel({ active }: { active: boolean }) {
   const step = (delta: number) => {
     const playerId = stepLineup(
       players.map((p) => p.id),
-      currentPlayerId(data, Date.now()),
+      currentPlayerId(data),
       delta,
     );
     if (playerId) take(playerId);
@@ -111,7 +110,7 @@ export function PresentationPanel({ active }: { active: boolean }) {
             variant="ghost"
             onClick={() => {
               lastTake.current = null;
-              void store.match.setProgram(takeScene("scoreboard", null, Date.now()));
+              void store.match.setProgram(takeScene("scoreboard", Date.now()));
             }}
           >
             Back to scoreboard

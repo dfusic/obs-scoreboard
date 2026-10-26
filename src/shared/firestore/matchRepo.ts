@@ -1,4 +1,5 @@
 import { arrayUnion, increment, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
+import { withLastScorer } from "../goals";
 import { normalizeMatch } from "../normalize";
 import type { MatchApi } from "../store/types";
 import { createInitialMatchState, type MatchState } from "../types";
@@ -60,16 +61,14 @@ export const matchApi: MatchApi = {
   setAwayPlayers: (enabled) => updateMatch({ awayPlayers: enabled }),
   setProgram: (program) => updateMatch({ program }),
   startHalf: (half, clock) => updateMatch({ half, clock }),
-  endHalf: (clock, program) => updateMatch({ clock, ...(program ? { program } : {}) }),
+  endHalf: (clock) => updateMatch({ clock }),
   resetScores: () => updateMatch({ score: { home: 0, away: 0 }, goals: [] }),
 
   // Goals carry their ms timestamp, so arrayUnion never merges two real goals.
-  recordGoal: (goal, program) =>
-    updateMatch({
-      [`score.${goal.side}`]: increment(1),
-      goals: arrayUnion(goal),
-      ...(program ? { program } : {}),
-    }),
+  recordGoal: (goal) => updateMatch({ [`score.${goal.side}`]: increment(1), goals: arrayUnion(goal) }),
+
+  setGoalScorer: (current, side, playerId) =>
+    updateMatch({ goals: withLastScorer(current.goals, side, playerId) }),
 
   removeLastGoal(current, side) {
     const lastIndex = current.goals.map((g) => g.side).lastIndexOf(side);

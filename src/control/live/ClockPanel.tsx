@@ -8,7 +8,6 @@ import {
   setClockElapsedMs,
   startOrResumeClock,
 } from "@shared/clock";
-import { takeScene } from "@shared/program";
 import { useTicking } from "@shared/react/hooks";
 import { useLiveData, useStore } from "@shared/react/store";
 import type { ClockState, Half } from "@shared/types";
@@ -38,7 +37,7 @@ function ClockReadout({ clock }: { clock: ClockState }) {
 
 export function ClockPanel() {
   const store = useStore();
-  const { match, scenes } = useLiveData();
+  const { match } = useLiveData();
   const { clock, half } = match;
   const [invalid, setInvalid] = useState(false);
 
@@ -54,12 +53,8 @@ export function ClockPanel() {
     input.value = "";
   };
 
-  /** Stops the clock and puts half time (1st half) or full time (2nd half) on air. */
-  const endHalf = () => {
-    const now = Date.now();
-    const scene = half === 1 ? "halftime" : "fulltime";
-    void store.match.endHalf(pauseClock(clock, now), takeScene(scene, scenes[scene].durationMs, now));
-  };
+  /** Stops the clock. Half time / full time are taken by hand from the Scenes panel. */
+  const endHalf = () => void store.match.endHalf(pauseClock(clock, Date.now()));
 
   /** Switches half with the clock stopped at its start (00:00 or 45:00). */
   const startHalf = (next: Half) => {

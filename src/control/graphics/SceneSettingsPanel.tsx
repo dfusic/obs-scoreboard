@@ -71,20 +71,6 @@ export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highl
                 onCommit={(v) => save({ subtitle: v.trim() })}
               />
             </Field>
-            <Field label="Back to scoreboard after (s)" htmlFor="scene-duration">
-              <CommitInput
-                id="scene-duration"
-                type="number"
-                min={0}
-                max={600}
-                placeholder="Stay on air"
-                value={config.durationMs ? String(config.durationMs / 1000) : ""}
-                onCommit={(v) => {
-                  const seconds = Number.parseFloat(v);
-                  save({ durationMs: seconds > 0 ? Math.round(seconds * 1000) : null });
-                }}
-              />
-            </Field>
           </div>
         )}
 
