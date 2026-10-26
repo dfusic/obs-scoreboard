@@ -4,6 +4,7 @@ import { useLiveData } from "@shared/react/store";
 import { SCENE_TYPES, type GraphicsSettings, type SceneType } from "@shared/types";
 import { useEffect, useState, type CSSProperties } from "react";
 import { SCENES, SemaforStripes, type SceneTarget } from "./scenes";
+import { TransitionCurtain, useSceneTransition } from "./Transition";
 
 const isScene = (v: unknown): v is SceneType => (SCENE_TYPES as readonly unknown[]).includes(v);
 
@@ -41,6 +42,19 @@ function usePreviewGraphics(): GraphicsSettings | null {
   return graphics;
 }
 
+/** Counts "preview-transition" messages: the Graphics page asks to play the transition again. */
+function usePreviewReplay(): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin === location.origin && e.data?.type === "preview-transition") setCount((c) => c + 1);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+  return count;
+}
+
 /** Who the scene is about. Previews fall back to the home side and its first player. */
 function sceneTarget(data: LiveData, preview: boolean): SceneTarget {
   const { program } = data.match;
@@ -58,18 +72,21 @@ export function Overlay() {
   const scene = previewScene ?? data.match.program.scene;
   const target = sceneTarget(data, previewScene !== null);
 
+  const { role, shown, running } = useSceneTransition(scene, data.graphics.transition, usePreviewReplay());
+
   // A scene's own background image replaces the default video (static, in overlay.html).
-  // Without one, the colour scheme's background colour (if it has one) does.
-  const background = data.scenes[scene].background;
+  // Without one, the colour scheme's background colour (if it has one) does. It follows
+  // the scene shown, so behind a curtain it changes while covered.
+  const background = data.scenes[shown].background;
   const bgColor = background === null ? data.graphics.colors.background : null;
   const themeId = data.graphics.theme;
   useEffect(() => {
-    document.body.dataset.scene = scene;
+    document.body.dataset.scene = shown;
     document.body.dataset.theme = themeId;
     document.body.classList.toggle("has-bg-image", background !== null);
     document.body.classList.toggle("has-bg-color", bgColor !== null);
     document.body.style.backgroundColor = bgColor ?? "";
-  }, [scene, themeId, background, bgColor]);
+  }, [shown, themeId, background, bgColor]);
   // Every scene's accent is the colour scheme's highlight.
   const accent = { "--accent": data.graphics.colors.highlight } as CSSProperties;
 
@@ -80,16 +97,18 @@ export function Overlay() {
       {SCENE_TYPES.map((type) => {
         const Scene = SCENES[type];
         return (
-          <section
-            key={type}
-            className={type === scene ? "scene active" : "scene"}
-            data-layer={type}
-            style={accent}
-          >
+          <section key={type} className="scene" data-layer={type} data-tr={role(type)} style={accent}>
             <Scene data={data} config={data.scenes[type]} target={target} />
           </section>
         );
       })}
+      {running?.kind === "cover" && (
+        <TransitionCurtain
+          id={running.id}
+          colors={data.graphics.colors}
+          logo={(data.teams[target.side] ?? data.teams.home)?.logo ?? null}
+        />
+      )}
     </>
   );
 }

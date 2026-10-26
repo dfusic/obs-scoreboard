@@ -175,4 +175,6 @@ export interface GraphicsSettings {
   /** A THEMES id (themes.ts). Stored as `template` before themes were introduced. */
   theme: string;
   colors: SchemeColors;
+  /** A TRANSITIONS id (transitions.ts): the effect between scenes. */
+  transition: string;
 }

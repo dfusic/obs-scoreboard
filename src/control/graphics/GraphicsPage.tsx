@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { OutputPreview } from "../OutputPreview";
 import { Button, cn, Hint, PageBody, PageHeader, Panel, PanelBoundary, PanelTitle } from "../ui";
 import { CompetitionPanel, SceneSettingsPanel } from "./SceneSettingsPanel";
-import { ColorSchemePicker, LookPanel, ThemePicker } from "./ThemePanels";
+import { ColorSchemePicker, LookPanel, ThemePicker, TransitionPicker } from "./ThemePanels";
 
 /**
  * Graphics: the look of every scene (theme and colour scheme, global) and each scene's
@@ -17,8 +17,10 @@ export function GraphicsPage({ hidden, previewEnabled }: { hidden: boolean; prev
   const store = useStore();
   const saved = useLiveData().graphics;
   const [selected, setSelected] = useState<SceneType>("scoreboard");
-  /** Unsaved theme and colours; null while they match what's saved. */
+  /** Unsaved theme, colours and transition; null while they match what's saved. */
   const [draft, setDraft] = useState<GraphicsSettings | null>(null);
+  /** Bumped to play the transition again in the preview. */
+  const [replay, setReplay] = useState(0);
   const dirty = draft !== null && !sameGraphics(draft, saved);
   const shown = draft ?? saved;
 
@@ -29,7 +31,7 @@ export function GraphicsPage({ hidden, previewEnabled }: { hidden: boolean; prev
 
   return (
     <div hidden={hidden}>
-      <PageHeader title="Graphics" sub="Theme and colour scheme for every scene, and each scene's own settings">
+      <PageHeader title="Graphics" sub="Theme, colour scheme and transition for every scene, and each scene's own settings">
         {dirty && (
           <span className="font-condensed text-[13px] font-bold tracking-[0.08em] text-warning uppercase">
             Unsaved look
@@ -55,7 +57,7 @@ export function GraphicsPage({ hidden, previewEnabled }: { hidden: boolean; prev
                   </Button>
                 ))}
               </div>
-              {previewEnabled && <OutputPreview className="rounded-none" scene={selected} graphics={draft} />}
+              {previewEnabled && <OutputPreview className="rounded-none" scene={selected} graphics={draft} replay={replay} />}
             </Panel>
             <Hint>
               Preview only. Pick a scene to see the look on it and to edit its own settings. Scenes go on air when you
@@ -66,6 +68,9 @@ export function GraphicsPage({ hidden, previewEnabled }: { hidden: boolean; prev
             </PanelBoundary>
             <PanelBoundary name="Colour scheme">
               <ColorSchemePicker value={shown} onChange={setDraft} />
+            </PanelBoundary>
+            <PanelBoundary name="Transition">
+              <TransitionPicker value={shown} onChange={setDraft} onReplay={() => setReplay((n) => n + 1)} />
             </PanelBoundary>
           </div>
           <div className="flex min-w-0 flex-col gap-4">

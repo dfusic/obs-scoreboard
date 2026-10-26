@@ -1,3 +1,4 @@
+import { DEFAULT_TRANSITION } from "./transitions";
 import type { GraphicsSettings, SceneType, SchemeColors } from "./types";
 
 /**
@@ -135,10 +136,10 @@ export function themeColors(t: Theme): SchemeColors {
   return { ...(colorScheme(t.scheme) ?? COLOR_SCHEMES[0]).colors };
 }
 
-/** A theme with its default colours. */
+/** A theme with its default colours (and the default transition). */
 export function themeSettings(id: string): GraphicsSettings {
   const t = theme(id);
-  return { theme: t.id, colors: themeColors(t) };
+  return { theme: t.id, colors: themeColors(t), transition: DEFAULT_TRANSITION };
 }
 
 export const DEFAULT_GRAPHICS: GraphicsSettings = themeSettings("classic");
@@ -153,7 +154,7 @@ export function matchingScheme(colors: SchemeColors): ColorScheme | undefined {
 }
 
 export function sameGraphics(a: GraphicsSettings, b: GraphicsSettings): boolean {
-  return a.theme === b.theme && sameColors(a.colors, b.colors);
+  return a.theme === b.theme && sameColors(a.colors, b.colors) && a.transition === b.transition;
 }
 
 /**

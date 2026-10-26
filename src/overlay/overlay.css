@@ -371,7 +371,7 @@ body[data-theme="semafor"] .card {
 }
 
 /* ---------- scenes ----------
-   One <section data-layer> per scene; main.ts toggles .active. Non-scoreboard
+   One <section data-layer> per scene, shown by data-tr (see transitions). Non-scoreboard
    scenes draw on a solid card so they read on any background. */
 
 .bg-image {
@@ -400,8 +400,7 @@ body.has-bg-color .bg-video {
 .scene {
   position: fixed;
   inset: 0;
-  opacity: 0;
-  transition: opacity 0.5s ease;
+  visibility: hidden;
   pointer-events: none;
   color: #fff;
   --accent: #fff;
@@ -409,50 +408,58 @@ body.has-bg-color .bg-video {
   --team-secondary: #fff;
 }
 
-.scene.active {
-  opacity: 1;
+/*
+ * Transitions between scenes (Transition.tsx). A visible scene has data-tr: "on" when
+ * settled, else "<kind>-in" / "<kind>-out" while the transition runs. A 30 fps frame
+ * clock sets the --tr-* progress variables on body; the fallbacks are frame 0.
+ * An ancestor with opacity < 1 (or a filter, mask or clip) cuts backdrop-filter off from
+ * what is behind it, which would break Semafor's blurred panels. So fades go on the
+ * scene's children, the section only ever gets opacity 0 or 1 (cover) and a transform
+ * (popup), and the curtains are a layer of their own on top. Off-air scenes are
+ * visibility: hidden, so their blur isn't computed.
+ */
+.scene[data-tr] {
+  visibility: visible;
+}
+
+/* Cover: the curtain hides the swap. */
+.scene[data-tr="cover-out"] {
+  opacity: calc(1 - var(--tr-swap, 0));
+}
+
+.scene[data-tr="cover-in"] {
+  opacity: var(--tr-swap, 0);
+}
+
+/* Fade and popup fade the children (.sb-semafor is display: contents: its panel fades). */
+.scene[data-tr="fade-out"] > *,
+.scene[data-tr="fade-out"] > .sb-semafor > .sem-panel,
+.scene[data-tr="popup-out"] > *,
+.scene[data-tr="popup-out"] > .sb-semafor > .sem-panel {
+  opacity: calc(1 - var(--tr-out, 0));
+}
+
+.scene[data-tr="fade-in"] > *,
+.scene[data-tr="fade-in"] > .sb-semafor > .sem-panel {
+  opacity: var(--tr-in, 0);
+}
+
+.scene[data-tr="popup-in"] > *,
+.scene[data-tr="popup-in"] > .sb-semafor > .sem-panel {
+  opacity: clamp(0, var(--tr-in-linear, 0) * 3, 1);
+}
+
+/* Popup: the old scene shrinks away, the new one grows in past full size and settles. */
+.scene[data-tr="popup-out"] {
+  transform: scale(calc(1 - 0.15 * var(--tr-out, 0)));
+}
+
+.scene[data-tr="popup-in"] {
+  transform: scale(calc(0.55 + 0.45 * var(--tr-in, 0)));
 }
 
 /* Semafor theme: every scene. The stripes are one layer behind all scenes, and each
-   scene draws on the scoreboard's blurred panel (.card shares the .sem-panel rule).
-   An ancestor with opacity < 1 cuts backdrop-filter off from what is behind it, so
-   here the scene's children fade instead of the section: the panel is then the faded
-   element itself and blurs the stripes during the fade too. Hidden children also get
-   visibility: hidden once faded, so their backdrop blur isn't computed off air. */
-body[data-theme="semafor"] .scene {
-  opacity: 1;
-  transition: none;
-}
-
-body[data-theme="semafor"] .scene > * {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.5s ease,
-    visibility 0s linear 0.5s;
-}
-
-body[data-theme="semafor"] .scene.active > * {
-  opacity: 1;
-  visibility: visible;
-  transition-delay: 0s;
-}
-
-/* .sb-semafor is display: contents, so its panel is the child that fades. */
-body[data-theme="semafor"] .scene > .sb-semafor > .sem-panel {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.5s ease,
-    visibility 0s linear 0.5s;
-}
-
-body[data-theme="semafor"] .scene.active > .sb-semafor > .sem-panel {
-  opacity: 1;
-  visibility: visible;
-  transition-delay: 0s;
-}
-
+   scene draws on the scoreboard's blurred panel (.card shares the .sem-panel rule). */
 body[data-theme="semafor"] .card {
   background: none;
   border: 0;
@@ -829,4 +836,111 @@ body[data-theme="semafor"] .intro-default-bg {
     opacity: 0;
     transform: translateX(4vh);
   }
+}
+
+/* ---------- transition curtains ----------
+   Drawn over every scene while a cover transition runs (Transition.tsx). --c1 is the
+   colour scheme's highlight, --c2 its background. Each piece reads --p (how far it has
+   closed) and --q (how far it has opened again), which default to the frame clock's
+   --tr-a / --tr-b; staggered pieces offset them by their index --k (0..1) times --s. */
+
+.tr-cover {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  --p: var(--tr-a, 0);
+  --q: var(--tr-b, 0);
+}
+
+.tr-cover > * {
+  position: absolute;
+}
+
+.tr-c1 {
+  background: var(--c1);
+}
+
+.tr-c2 {
+  background: var(--c2);
+}
+
+.tr-full {
+  inset: 0;
+}
+
+.tr-staggered {
+  --p: clamp(0, var(--tr-a, 0) * (1 + var(--s)) - var(--k) * var(--s), 1);
+  --q: clamp(0, var(--tr-b, 0) * (1 + var(--s)) - var(--k) * var(--s), 1);
+}
+
+/* Closes from the left, opens to the right. */
+.tr-hwipe {
+  clip-path: inset(0 calc((1 - var(--p)) * 100%) 0 calc(var(--q) * 100%));
+}
+
+/* Closes from the top, opens to the bottom. */
+.tr-vwipe {
+  clip-path: inset(calc(var(--q) * 100%) 0 calc((1 - var(--p)) * 100%) 0);
+}
+
+/* Wipe: the second colour leads in and trails out. */
+.tr-wipe-lead {
+  --p: min(1, var(--tr-a, 0) * 1.25);
+}
+
+.tr-wipe-main {
+  --q: min(1, var(--tr-b, 0) * 1.25);
+}
+
+.tr-doors {
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  box-sizing: border-box;
+}
+
+.tr-door-left {
+  left: 0;
+  border-right: 0.5vw solid var(--c2);
+  transform: translateX(calc((var(--tr-a, 0) - 1 - var(--tr-b, 0)) * 100%));
+}
+
+.tr-door-right {
+  right: 0;
+  border-left: 0.5vw solid var(--c2);
+  transform: translateX(calc((1 - var(--tr-a, 0) + var(--tr-b, 0)) * 100%));
+}
+
+/* Iris: the hole closes on the centre, then opens from it (57vw reaches the corners). */
+.tr-iris {
+  inset: 0;
+  --r: calc((1 - var(--tr-a, 0) + var(--tr-b, 0)) * 57vw);
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent var(--r),
+    var(--c2) var(--r),
+    var(--c2) calc(var(--r) + 1.2vw),
+    var(--c1) calc(var(--r) + 1.2vw)
+  );
+}
+
+/* Pixels: each square is on between its own two thresholds (--d1 closing, --d2 opening). */
+.tr-pixel {
+  /* 1px larger than the grid, so no hairline shows between neighbours. */
+  width: calc(100% / 18 + 1px);
+  height: calc(12.5% + 1px);
+  opacity: calc(
+    clamp(0, (var(--tr-a, 0) - var(--d1)) * 1000, 1) * clamp(0, (var(--d2) - var(--tr-b, 0)) * 1000, 1)
+  );
+}
+
+.tr-logo {
+  left: 50%;
+  top: 50%;
+  height: 36%;
+  max-width: 40%;
+  object-fit: contain;
+  opacity: var(--tr-logo, 0);
+  transform: translate(-50%, -50%) scale(calc(0.7 + 0.3 * var(--tr-logo, 0)));
 }

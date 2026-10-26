@@ -12,15 +12,18 @@ export const overlayUrl = () => new URL("../overlay/overlay.html", location.href
 /**
  * Embeds the real output page, scaled to fit, so the preview always matches what goes
  * on air. `scene` forces a scene in this preview only (null follows what's on air), and
- * `graphics` shows an unsaved theme and colours (null shows the saved ones).
+ * `graphics` shows an unsaved theme and colours (null shows the saved ones). Changing
+ * `replay` (a counter) plays the transition again onto the scene shown.
  */
 export function OutputPreview({
   scene = null,
   graphics = null,
+  replay = 0,
   className,
 }: {
   scene?: SceneType | null;
   graphics?: GraphicsSettings | null;
+  replay?: number;
   className?: string;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -45,6 +48,12 @@ export function OutputPreview({
   const sendGraphics = () => post({ type: "preview-graphics", graphics });
   useEffect(sendScene, [scene]);
   useEffect(sendGraphics, [graphics]);
+  const replayed = useRef(replay);
+  useEffect(() => {
+    if (replay === replayed.current) return;
+    replayed.current = replay;
+    post({ type: "preview-transition" });
+  }, [replay]);
 
   return (
     <div ref={boxRef} className={cn("relative aspect-[2304/1024] overflow-hidden rounded-sm bg-black", className)}>
