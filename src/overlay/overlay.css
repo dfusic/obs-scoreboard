@@ -180,19 +180,17 @@ body {
   text-transform: uppercase;
 }
 
-/* "Semafor" scoreboard template, from the 16:9 design: red background with black
-   stripes turning slowly (SemaforStripes), under a panel that blurs them and darkens
-   them to the design's maroon (brightness 0.22 turns #d41228 into #2e0409). Vertical
-   sizes use vh, like the player intro, so the panel's contents fit any height. */
+/* "Semafor" theme, from the 16:9 design: red background with black stripes turning
+   slowly (SemaforStripes, one layer behind every scene), under a panel that blurs them
+   and darkens them to the design's maroon (brightness 0.22 turns #d41228 into #2e0409).
+   Vertical sizes use vh, like the player intro, so the panel's contents fit any height.
+   The other scenes get the same panel, see "Semafor theme: every scene" below. */
 .sb-semafor {
-  position: fixed;
-  inset: 0;
+  display: contents;
 }
 
-/* Paints the background colour itself, so the panel's backdrop blur sees it
-   during the scene's fade too (the fading section isolates its backdrop). */
 .sem-stripes {
-  position: absolute;
+  position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -218,18 +216,22 @@ body.has-bg-image .sem-stripes {
   }
 }
 
-.sem-panel {
+.sem-panel,
+body[data-theme="semafor"] .card {
   position: absolute;
   left: 7%;
   right: 7%;
   top: 8.7%;
   bottom: 8.7%;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: 23.1vh auto minmax(0, 1fr);
   backdrop-filter: blur(1.6vw) brightness(0.22);
   box-shadow: 0 0 2vh rgba(0, 0, 0, 0.25);
   overflow: hidden;
+}
+
+.sem-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: 23.1vh auto minmax(0, 1fr);
 }
 
 .sem-team {
@@ -390,6 +392,11 @@ body.has-bg-color .bg-video {
   visibility: hidden;
 }
 
+/*
+ * Scenes. The theme is on body[data-theme] (classic, semafor, dark), so a theme can
+ * restyle any scene with body[data-theme="..."] rules; --accent is the colour
+ * scheme's highlight.
+ */
 .scene {
   position: fixed;
   inset: 0;
@@ -404,6 +411,58 @@ body.has-bg-color .bg-video {
 
 .scene.active {
   opacity: 1;
+}
+
+/* Semafor theme: every scene. The stripes are one layer behind all scenes, and each
+   scene draws on the scoreboard's blurred panel (.card shares the .sem-panel rule).
+   An ancestor with opacity < 1 cuts backdrop-filter off from what is behind it, so
+   here the scene's children fade instead of the section: the panel is then the faded
+   element itself and blurs the stripes during the fade too. Hidden children also get
+   visibility: hidden once faded, so their backdrop blur isn't computed off air. */
+body[data-theme="semafor"] .scene {
+  opacity: 1;
+  transition: none;
+}
+
+body[data-theme="semafor"] .scene > * {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.5s ease,
+    visibility 0s linear 0.5s;
+}
+
+body[data-theme="semafor"] .scene.active > * {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* .sb-semafor is display: contents, so its panel is the child that fades. */
+body[data-theme="semafor"] .scene > .sb-semafor > .sem-panel {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.5s ease,
+    visibility 0s linear 0.5s;
+}
+
+body[data-theme="semafor"] .scene.active > .sb-semafor > .sem-panel {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+body[data-theme="semafor"] .card {
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+/* The intro is full screen: the whole frame is the blurred panel, band and photo on top. */
+body[data-theme="semafor"] .intro-default-bg {
+  background: none;
+  backdrop-filter: blur(1.6vw) brightness(0.22);
 }
 
 .card {

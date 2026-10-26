@@ -12,7 +12,7 @@ export const overlayUrl = () => new URL("../overlay/overlay.html", location.href
 /**
  * Embeds the real output page, scaled to fit, so the preview always matches what goes
  * on air. `scene` forces a scene in this preview only (null follows what's on air), and
- * `graphics` shows unsaved scoreboard colours (null shows the saved ones).
+ * `graphics` shows an unsaved theme and colours (null shows the saved ones).
  */
 export function OutputPreview({
   scene = null,

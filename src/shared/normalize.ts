@@ -1,4 +1,4 @@
-import { sceneTemplateId, scoreboardTemplate } from "./templates";
+import { COLOR_SCHEMES, colorScheme, sameColors, sceneLayoutId, theme, themeColors, type SchemeColorKey } from "./themes";
 import {
   createInitialMatchState,
   defaultSceneConfigs,
@@ -51,14 +51,19 @@ export function normalizePlayer(id: string, data: Partial<PlayerFields>): Player
   return { id, teamId: data.teamId ?? "", name: data.name ?? "", photo: data.photo ?? null };
 }
 
-/** All scene templates, with defaults for any not customised yet. Unknown scene ids are dropped. */
-export function normalizeScenes(stored: Iterable<[string, Partial<SceneConfig>]>): SceneConfigs {
+/**
+ * All scene configs, with defaults for any not customised yet. Unknown scene ids are
+ * dropped. The layout was stored as `template` before themes.
+ */
+export function normalizeScenes(
+  stored: Iterable<[string, Partial<SceneConfig> & { template?: unknown }]>,
+): SceneConfigs {
   const scenes = defaultSceneConfigs();
   for (const [id, data] of stored) {
     if ((SCENE_TYPES as readonly string[]).includes(id)) {
       const type = id as SceneType;
-      scenes[type] = { ...scenes[type], ...data };
-      scenes[type].template = sceneTemplateId(type, scenes[type].template);
+      const { template, ...fields } = data;
+      scenes[type] = { ...scenes[type], ...fields, layout: sceneLayoutId(type, fields.layout ?? template) };
     }
   }
   return scenes;
@@ -66,17 +71,32 @@ export function normalizeScenes(stored: Iterable<[string, Partial<SceneConfig>]>
 
 const isColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
 
-/** Stored colours over the template's defaults; an unknown template falls back to Classic. */
-export function normalizeGraphics(data: Partial<GraphicsSettings> | undefined): GraphicsSettings {
-  const template = scoreboardTemplate(typeof data?.template === "string" ? data.template : "");
-  const colors = { ...template.colors };
-  const stored = (data?.colors ?? {}) as Record<string, unknown>;
-  for (const key of Object.keys(colors) as (keyof typeof colors)[]) {
-    const value = stored[key];
+/**
+ * Stored colours over the theme's defaults; an unknown theme falls back to Classic.
+ * Settings saved before themes have `template` instead of `theme`: an old colour-variant
+ * template (e.g. "forest") becomes the Dark theme with that scheme's colours as the
+ * defaults. Settings saved before `highlight` take it from the scheme their other
+ * colours match, else from the theme's scheme.
+ */
+export function normalizeGraphics(
+  data: (Partial<GraphicsSettings> & { template?: unknown }) | undefined,
+): GraphicsSettings {
+  const stored = data?.theme ?? data?.template;
+  const id = typeof stored === "string" ? stored : "";
+  const t = theme(id);
+  const legacyScheme = id !== t.id ? colorScheme(id) : undefined;
+  const colors = legacyScheme ? { ...legacyScheme.colors } : themeColors(t);
+  const storedColors = (data?.colors ?? {}) as Record<string, unknown>;
+  for (const key of Object.keys(colors) as SchemeColorKey[]) {
+    const value = storedColors[key];
     if (isColor(value)) colors[key] = value;
     else if (key === "background" && value === null) colors.background = null;
   }
-  return { template: template.id, colors };
+  if (!isColor(storedColors.highlight)) {
+    const match = COLOR_SCHEMES.find((s) => sameColors(s.colors, { ...colors, highlight: s.colors.highlight }));
+    if (match) colors.highlight = match.colors.highlight;
+  }
+  return { theme: t.id, colors };
 }
 
 /** Squad order (outside a match lineup): by name. */

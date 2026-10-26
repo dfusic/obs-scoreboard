@@ -106,15 +106,15 @@ export interface PlayersApi {
 }
 
 export interface ScenesApi {
-  /** All scene templates, with defaults for any not customised yet. */
+  /** All scene configs, with defaults for any not customised yet. */
   subscribe(onChange: (scenes: SceneConfigs) => void): Unsubscribe;
   update(type: SceneType, fields: Partial<SceneConfig>): Promise<void>;
 }
 
 export interface GraphicsApi {
-  /** The scoreboard look, with defaults when it was never saved. */
+  /** The look of every scene (theme and colours), with defaults when it was never saved. */
   subscribe(onChange: (graphics: GraphicsSettings) => void): Unsubscribe;
-  /** Replaces the scoreboard look; it shows on air at once. */
+  /** Replaces the look; it shows on air at once. */
   save(graphics: GraphicsSettings): Promise<void>;
 }
 

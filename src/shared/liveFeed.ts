@@ -1,5 +1,5 @@
 import { resolveLineup } from "./lineup";
-import { DEFAULT_GRAPHICS } from "./templates";
+import { DEFAULT_GRAPHICS } from "./themes";
 import type { DataStore } from "./store";
 import {
   defaultSceneConfigs,
@@ -39,8 +39,8 @@ export function sidesWithPlayers(match: MatchState): Side[] {
 
 /**
  * Subscribes to the live match plus only the data it references: the two selected
- * teams, their players (re-subscribed when the teams change), the scene templates and
- * the scoreboard graphics.
+ * teams, their players (re-subscribed when the teams change), the scene configs and
+ * the graphics (theme and colour scheme).
  * Calls back on every change once the match has loaded.
  */
 export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => void): () => void {
