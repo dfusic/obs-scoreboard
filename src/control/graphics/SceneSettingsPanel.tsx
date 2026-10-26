@@ -1,8 +1,8 @@
 import { useLiveData, useStore } from "@shared/react/store";
-import { SCENE_TEMPLATES } from "@shared/templates";
+import { SCENE_LAYOUTS } from "@shared/themes";
 import { SCENE_LABELS, type SceneConfig, type SceneType } from "@shared/types";
 import { BACKGROUND_IMAGE, LOGO_IMAGE } from "../images";
-import { TemplateOption, VIDEO_THUMB_BG } from "./ScoreboardTemplates";
+import { PickerOption, ScopeTag, VIDEO_THUMB_BG } from "./ThemePanels";
 import {
   Button,
   CommitInput,
@@ -12,6 +12,7 @@ import {
   Panel,
   PanelBody,
   PanelTitle,
+  Spacer,
   Thumb,
   UploadButton,
   useImageUpload,
@@ -20,8 +21,12 @@ import {
 /** The scoreboard and player intro have fixed designs; only their background is configurable here. */
 const hasTextOptions = (type: SceneType) => type !== "scoreboard" && type !== "presentation";
 
-/** One scene's options. They save as you go and show on air wherever the scene is. */
-export function SceneSettingsPanel({ type }: { type: SceneType }) {
+/**
+ * One scene's own options (its colours come from the global colour scheme). They save as
+ * you go and show on air wherever the scene is. `highlight` is the colour scheme's, for
+ * the layout thumbnails.
+ */
+export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highlight: string }) {
   const store = useStore();
   const config = useLiveData().scenes[type];
   const save = (fields: Partial<SceneConfig>) => void store.scenes.update(type, fields);
@@ -29,20 +34,24 @@ export function SceneSettingsPanel({ type }: { type: SceneType }) {
 
   return (
     <Panel>
-      <PanelTitle>{type === "scoreboard" ? "Background image" : `${SCENE_LABELS[type]} settings`}</PanelTitle>
+      <PanelTitle>
+        {type === "scoreboard" ? "Background image" : `${SCENE_LABELS[type]} settings`}
+        <Spacer />
+        <ScopeTag>This scene</ScopeTag>
+      </PanelTitle>
       <PanelBody>
-        {SCENE_TEMPLATES[type] && (
-          <Field label="Template">
+        {SCENE_LAYOUTS[type] && (
+          <Field label="Layout">
             <div className="grid grid-cols-2 gap-2.5">
-              {SCENE_TEMPLATES[type].map((t) => (
-                <TemplateOption
-                  key={t.id}
-                  name={t.name}
-                  selected={config.template === t.id}
-                  onPick={() => save({ template: t.id })}
+              {SCENE_LAYOUTS[type].map((l) => (
+                <PickerOption
+                  key={l.id}
+                  name={l.name}
+                  selected={config.layout === l.id}
+                  onPick={() => save({ layout: l.id })}
                 >
-                  <SceneTemplateThumb id={t.id} config={config} />
-                </TemplateOption>
+                  <SceneLayoutThumb id={l.id} title={config.title} highlight={highlight} />
+                </PickerOption>
               ))}
             </div>
           </Field>
@@ -60,14 +69,6 @@ export function SceneSettingsPanel({ type }: { type: SceneType }) {
                 type="text"
                 value={config.subtitle}
                 onCommit={(v) => save({ subtitle: v.trim() })}
-              />
-            </Field>
-            <Field label="Accent colour" htmlFor="scene-accent">
-              <CommitInput
-                id="scene-accent"
-                type="color"
-                value={config.accentColor}
-                onCommit={(v) => save({ accentColor: v })}
               />
             </Field>
             <Field label="Back to scoreboard after (s)" htmlFor="scene-duration">
@@ -96,18 +97,17 @@ export function SceneSettingsPanel({ type }: { type: SceneType }) {
               <UploadButton onChange={upload.onChange}>Upload background</UploadButton>
               {config.background && (
                 <Button variant="ghost" className="h-7 w-full text-[11px]" onClick={() => save({ background: null })}>
-                  {type === "scoreboard" ? "Remove image" : "Use default video"}
+                  Remove image
                 </Button>
               )}
             </div>
           </div>
           {upload.status && <ErrorText>{upload.status}</ErrorText>}
         </Field>
-        {type === "scoreboard" ? (
-          <Hint>An image replaces the template's background colour or video. It saves (and goes on air) at once.</Hint>
-        ) : (
-          <Hint>Changes save as you go and apply wherever this scene is shown.</Hint>
-        )}
+        <Hint>
+          An image replaces the colour scheme's background (colour or video) on this scene only. Changes save as you go
+          and apply wherever this scene is shown.
+        </Hint>
       </PanelBody>
     </Panel>
   );
@@ -169,15 +169,15 @@ export function CompetitionPanel() {
   );
 }
 
-/** A miniature of a scene template, in the scene's accent colour. */
-function SceneTemplateThumb({ id, config }: { id: string; config: SceneConfig }) {
-  const label = config.title || "Welcome";
+/** A miniature of a scene layout, in the colour scheme's highlight. */
+function SceneLayoutThumb({ id, title, highlight }: { id: string; title: string; highlight: string }) {
+  const label = title || "Welcome";
   if (id === "largeText") {
     return (
       <div className="flex size-full items-center overflow-hidden" style={{ background: VIDEO_THUMB_BG }}>
         <span className="font-condensed text-[64px] leading-none font-black whitespace-nowrap text-white uppercase">
           {label}
-          <span className="mx-2 inline-block size-3 rounded-full align-middle" style={{ background: config.accentColor }} />
+          <span className="mx-2 inline-block size-3 rounded-full align-middle" style={{ background: highlight }} />
           {label}
         </span>
       </div>
@@ -187,17 +187,17 @@ function SceneTemplateThumb({ id, config }: { id: string; config: SceneConfig })
     <div className="flex size-full items-center justify-center p-2" style={{ background: VIDEO_THUMB_BG }}>
       <div
         className="flex size-full flex-col gap-1 rounded-sm border-t-2 bg-[#0a0c10]/90 px-2 py-1.5"
-        style={{ borderColor: config.accentColor }}
+        style={{ borderColor: highlight }}
       >
         <span
           className="truncate font-condensed text-[11px] leading-none font-black uppercase"
-          style={{ color: config.accentColor }}
+          style={{ color: highlight }}
         >
           {label}
         </span>
         <div className="flex flex-1 items-center justify-around">
           <span className="size-5 rounded-full bg-white/20" />
-          <span className="font-condensed text-[9px] font-bold" style={{ color: config.accentColor }}>
+          <span className="font-condensed text-[9px] font-bold" style={{ color: highlight }}>
             VS
           </span>
           <span className="size-5 rounded-full bg-white/20" />

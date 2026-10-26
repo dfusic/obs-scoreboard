@@ -13,7 +13,7 @@ export const graphicsApi: GraphicsApi = {
     );
   },
 
-  // Overwrites, so no colours from a previously saved template linger.
+  // Overwrites, so no stale fields (such as the pre-themes `template`) linger.
   async save(graphics) {
     await setDoc(graphicsRef(), graphics);
   },

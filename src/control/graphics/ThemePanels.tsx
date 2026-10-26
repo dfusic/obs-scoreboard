@@ -1,5 +1,14 @@
-import { LAYOUT_COLORS, SCOREBOARD_TEMPLATES, scoreboardTemplate, type ScoreboardTemplate } from "@shared/templates";
-import type { GraphicsSettings, ScoreboardColors } from "@shared/types";
+import {
+  COLOR_SCHEMES,
+  matchingScheme,
+  sameColors,
+  theme,
+  THEME_COLORS,
+  themeColors,
+  THEMES,
+  type ThemeId,
+} from "@shared/themes";
+import type { GraphicsSettings, SchemeColors } from "@shared/types";
 import type { ReactNode } from "react";
 import { Button, cn, Hint, Panel, PanelBody, PanelTitle, Spacer } from "../ui";
 
@@ -8,10 +17,19 @@ export const VIDEO_THUMB_BG = "radial-gradient(ellipse at 30% 60%, #3a0808 0%, #
 
 const thumbText = "font-condensed font-black leading-none tabular-nums";
 
-/** A miniature of the template's layout in the given colours. */
-function TemplateThumb({ template, colors }: { template: ScoreboardTemplate; colors: ScoreboardColors }) {
+/** Marks a panel's options as global (every scene) or as the selected scene's own. */
+export function ScopeTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full border border-line-strong px-2 py-0.5 text-[10px] tracking-[0.08em] text-muted">
+      {children}
+    </span>
+  );
+}
+
+/** A miniature of the theme's scoreboard in the given colours. */
+function ThemeThumb({ themeId, colors }: { themeId: ThemeId; colors: SchemeColors }) {
   const background = colors.background ?? VIDEO_THUMB_BG;
-  if (template.layout === "classic") {
+  if (themeId === "classic") {
     return (
       <div className="relative size-full" style={{ background }}>
         <div
@@ -28,7 +46,7 @@ function TemplateThumb({ template, colors }: { template: ScoreboardTemplate; col
       </div>
     );
   }
-  if (template.layout === "semafor") {
+  if (themeId === "semafor") {
     return (
       <div
         className="relative size-full"
@@ -86,16 +104,18 @@ function TemplateThumb({ template, colors }: { template: ScoreboardTemplate; col
   );
 }
 
-/** One template in a picker grid: its thumbnail and name. */
-export function TemplateOption({
+/** One option in a picker grid: its thumbnail and name, with an optional extra under the name. */
+export function PickerOption({
   name,
   selected,
   onPick,
+  extra,
   children,
 }: {
   name: string;
   selected: boolean;
   onPick: () => void;
+  extra?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -113,37 +133,103 @@ export function TemplateOption({
       >
         {children}
       </span>
-      <span className={cn("self-center", selected && "text-fg")}>{name}</span>
+      <span className={cn("flex items-center gap-2 self-center", selected && "text-fg")}>
+        {name}
+        {extra}
+      </span>
     </button>
   );
 }
 
-/** The template grid. Picking one starts a draft with its default colours. */
-export function TemplatePicker({ value, onPick }: { value: GraphicsSettings; onPick: (id: string) => void }) {
+const pickerGrid = "grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5";
+
+/**
+ * The theme grid, each shown in the current colours. A theme is the design of every
+ * scene; picking one keeps the colours, so the colour scheme carries over.
+ */
+export function ThemePicker({ value, onChange }: { value: GraphicsSettings; onChange: (next: GraphicsSettings) => void }) {
   return (
     <Panel>
-      <PanelTitle>Choose template</PanelTitle>
+      <PanelTitle>
+        Theme
+        <Spacer />
+        <ScopeTag>All scenes</ScopeTag>
+      </PanelTitle>
       <PanelBody>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
-          {SCOREBOARD_TEMPLATES.map((t) => {
-            const selected = t.id === value.template;
-            return (
-              <TemplateOption key={t.id} name={t.name} selected={selected} onPick={() => onPick(t.id)}>
-                <TemplateThumb template={t} colors={selected ? value.colors : t.colors} />
-              </TemplateOption>
-            );
-          })}
+        <div className={pickerGrid}>
+          {THEMES.map((t) => (
+            <PickerOption
+              key={t.id}
+              name={t.name}
+              selected={t.id === value.theme}
+              onPick={() => onChange({ ...value, theme: t.id })}
+            >
+              <ThemeThumb themeId={t.id} colors={value.colors} />
+            </PickerOption>
+          ))}
         </div>
+        <Hint>The theme sets the design of every scene. Your colour scheme stays when you switch.</Hint>
+      </PanelBody>
+    </Panel>
+  );
+}
+
+/** The scheme's colours as small dots: background, accent and the scenes' highlight. */
+function SchemeSwatches({ colors }: { colors: SchemeColors }) {
+  return (
+    <span className="flex gap-1">
+      {[colors.background, colors.accent, colors.highlight].map((color, i) => (
+        <span
+          key={i}
+          className="size-2.5 rounded-full border border-white/20"
+          style={{ background: color ?? VIDEO_THUMB_BG }}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** The colour scheme grid, each shown on the chosen theme. Picking one replaces all colours. */
+export function ColorSchemePicker({
+  value,
+  onChange,
+}: {
+  value: GraphicsSettings;
+  onChange: (next: GraphicsSettings) => void;
+}) {
+  return (
+    <Panel>
+      <PanelTitle>
+        Colour scheme
+        <Spacer />
+        <ScopeTag>All scenes</ScopeTag>
+      </PanelTitle>
+      <PanelBody>
+        <div className={pickerGrid}>
+          {COLOR_SCHEMES.map((s) => (
+            <PickerOption
+              key={s.id}
+              name={s.name}
+              selected={sameColors(s.colors, value.colors)}
+              onPick={() => onChange({ ...value, colors: { ...s.colors } })}
+              extra={<SchemeSwatches colors={s.colors} />}
+            >
+              <ThemeThumb themeId={theme(value.theme).id} colors={s.colors} />
+            </PickerOption>
+          ))}
+        </div>
+        <Hint>The colour scheme colours every scene: the scoreboard, and the titles and accents of the others.</Hint>
       </PanelBody>
     </Panel>
   );
 }
 
 /**
- * Colours of the chosen template. Edits are a draft shown only in the preview until
- * saved, so the look can be tried out while the scoreboard is on air.
+ * The look of every scene: the chosen theme and colour scheme, the single colours, and
+ * saving. Everything here is a draft shown only in the preview until saved, so the look
+ * can be tried out while on air.
  */
-export function ColorsPanel({
+export function LookPanel({
   value,
   dirty,
   onChange,
@@ -156,24 +242,28 @@ export function ColorsPanel({
   onSave: () => void;
   onDiscard: () => void;
 }) {
-  const template = scoreboardTemplate(value.template);
-  const set = (colors: Partial<ScoreboardColors>) => onChange({ ...value, colors: { ...value.colors, ...colors } });
+  const t = theme(value.theme);
+  const defaults = themeColors(t);
+  const scheme = matchingScheme(value.colors);
+  const set = (colors: Partial<SchemeColors>) => onChange({ ...value, colors: { ...value.colors, ...colors } });
 
   return (
     <Panel>
       <PanelTitle>
-        Customize colours
+        Look
         <Spacer />
         {dirty && <span className="tracking-[0.08em] text-warning normal-case">Unsaved</span>}
+        <ScopeTag>All scenes</ScopeTag>
       </PanelTitle>
       <PanelBody>
         <div className="text-[13px] text-soft">
-          Template: <strong className="text-fg">{template.name}</strong>
+          Theme <strong className="text-fg">{t.name}</strong> · Colours{" "}
+          <strong className="text-fg">{scheme?.name ?? "Custom"}</strong>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          {LAYOUT_COLORS[template.layout].map(({ key, label }) => {
+          {THEME_COLORS[t.id].map(({ key, label }) => {
             const color = value.colors[key];
-            const inputId = `sb-color-${key}`;
+            const inputId = `look-color-${key}`;
             return (
               <div key={key} className="flex flex-col gap-1.5">
                 <label htmlFor={inputId} className="text-xs font-medium tracking-[0.04em] text-dim">
@@ -183,7 +273,7 @@ export function ColorsPanel({
                   <input
                     id={inputId}
                     type="color"
-                    value={color ?? template.colors.background ?? "#000000"}
+                    value={color ?? defaults.background ?? "#000000"}
                     onChange={(e) => set({ [key]: e.target.value })}
                     className={cn("w-10 shrink-0", color === null && "opacity-40")}
                   />
@@ -194,9 +284,7 @@ export function ColorsPanel({
                     <input
                       type="checkbox"
                       checked={color === null}
-                      onChange={(e) =>
-                        set({ background: e.target.checked ? null : (template.colors.background ?? "#0a0c10") })
-                      }
+                      onChange={(e) => set({ background: e.target.checked ? null : (defaults.background ?? "#0a0c10") })}
                     />
                     Background video
                   </label>
@@ -209,11 +297,7 @@ export function ColorsPanel({
           <Button variant="primary" className="h-11 flex-1 justify-center" disabled={!dirty} onClick={onSave}>
             Save &amp; put on air
           </Button>
-          <Button
-            variant="ghost"
-            className="h-11"
-            onClick={() => onChange({ template: template.id, colors: { ...template.colors } })}
-          >
+          <Button variant="ghost" className="h-11" onClick={() => onChange({ theme: t.id, colors: defaults })}>
             Reset colours
           </Button>
           <Button variant="ghost" className="h-11" disabled={!dirty} onClick={onDiscard}>
@@ -221,8 +305,8 @@ export function ColorsPanel({
           </Button>
         </div>
         <Hint>
-          The preview shows your changes. The scoreboard on air changes only when you save. Reset colours goes back to
-          the template's own colours.
+          Theme and colours apply to every scene. The preview shows your changes on whichever scene you pick above; the
+          output changes only when you save. Reset colours goes back to the theme's own colour scheme.
         </Hint>
       </PanelBody>
     </Panel>

@@ -1,9 +1,9 @@
 import { formatClock } from "@shared/clock";
 import { matchPlayers, type LiveData } from "@shared/liveFeed";
 import { goalMinute } from "@shared/program";
-import { scoreboardTemplate } from "@shared/templates";
+import { theme } from "@shared/themes";
 import { useTicking } from "@shared/react/hooks";
-import type { ClockState, Player, ScoreboardColors, SceneConfig, SceneType, Side, TeamProfile } from "@shared/types";
+import type { ClockState, Player, SceneConfig, SceneType, SchemeColors, Side, TeamProfile } from "@shared/types";
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 /** What a scene is about, after applying any preview override. */
@@ -226,8 +226,8 @@ const ScoreboardClock = memo(function ScoreboardClock({ clock }: { clock: ClockS
   );
 });
 
-/** Template colours as CSS custom properties (see the scoreboard rules in overlay.css). */
-function scoreboardVars(colors: ScoreboardColors): CSSProperties {
+/** Scheme colours as CSS custom properties (see the scoreboard rules in overlay.css). */
+function scoreboardVars(colors: SchemeColors): CSSProperties {
   return {
     "--sb-score": colors.score,
     "--sb-names": colors.names,
@@ -281,10 +281,15 @@ const STRIPE_BANDS = (() => {
   });
 })();
 
-/** Never re-renders: the bands move by CSS animation and take their colour from --sb-accent. */
-const SemaforStripes = memo(function SemaforStripes() {
+/**
+ * The Semafor background behind every scene: drawn once by the overlay (not per scene),
+ * so the bands keep turning without a jump when the scene changes. Re-renders only when
+ * the colours change; the bands move by CSS animation and take their colour from --sb-accent.
+ */
+export const SemaforStripes = memo(function SemaforStripes({ colors }: { colors: SchemeColors }) {
+  const style = { "--sb-accent": colors.accent, "--sb-bg": colors.background ?? "transparent" } as CSSProperties;
   return (
-    <svg className="sem-stripes" viewBox="0 0 2304 1024" preserveAspectRatio="xMidYMid slice" aria-hidden>
+    <svg className="sem-stripes" style={style} viewBox="0 0 2304 1024" preserveAspectRatio="xMidYMid slice" aria-hidden>
       {STRIPE_BANDS.map((band) => (
         <g
           key={band.r}
@@ -341,15 +346,14 @@ function SemaforScorers({ data, side }: { data: LiveData; side: Side }) {
 }
 
 /**
- * Semafor: red background with black stripes turning slowly, under a dark panel that
- * blurs them. Names and cities over the clock, then crests (with scorers), the
- * competition logo and the score. The competition logo is the scoreboard scene's logo;
- * without one, the scene's title and subtitle are shown instead.
+ * Semafor: a dark panel that blurs the turning stripes (SemaforStripes, drawn by the
+ * overlay behind every scene). Names and cities over the clock, then crests (with
+ * scorers), the competition logo and the score. The competition logo is the scoreboard
+ * scene's logo; without one, the scene's title and subtitle are shown instead.
  */
 function SemaforScoreboard({ data, config }: SceneProps) {
   const { score } = data.match;
-  const { colors } = data.graphics;
-  const style = { ...scoreboardVars(colors), "--sb-bg": colors.background ?? "transparent" } as CSSProperties;
+  const style = scoreboardVars(data.graphics.colors);
   const name = (side: Side) => {
     const team = data.teams[side];
     return (
@@ -367,7 +371,6 @@ function SemaforScoreboard({ data, config }: SceneProps) {
   );
   return (
     <div className="sb-semafor" style={style}>
-      <SemaforStripes />
       <div className="sem-panel">
         {name("home")}
         <SemaforClock clock={data.match.clock} />
@@ -397,14 +400,14 @@ function SemaforScoreboard({ data, config }: SceneProps) {
   );
 }
 
-/** The scoreboard in the chosen template's layout (shared/templates.ts) and colours. */
+/** The scoreboard in the theme's design (shared/themes.ts) and the colour scheme. */
 function ScoreboardScene(props: SceneProps) {
   const { data } = props;
   const { score } = data.match;
   const { colors } = data.graphics;
-  const { layout } = scoreboardTemplate(data.graphics.template);
-  if (layout === "semafor") return <SemaforScoreboard {...props} />;
-  if (layout === "bar") {
+  const { id } = theme(data.graphics.theme);
+  if (id === "semafor") return <SemaforScoreboard {...props} />;
+  if (id === "dark") {
     return (
       <div className="sb-bar" style={scoreboardVars(colors)}>
         <BarSide data={data} side="home" />
@@ -459,7 +462,7 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
   scoreboard: ScoreboardScene,
 
   welcome: ({ data, config }) =>
-    config.template === "largeText" ? (
+    config.layout === "largeText" ? (
       <Marquee title={config.title} subtitle={config.subtitle} />
     ) : (
       <div className="card welcome">

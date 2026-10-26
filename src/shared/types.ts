@@ -66,19 +66,26 @@ export const SCENE_LABELS: Record<SceneType, string> = {
   fulltime: "Full time",
 };
 
-/** Per-template options, stored in workspaces/{ws}/scenes/{sceneType}. */
+/** Per-scene options, stored in workspaces/{ws}/scenes/{sceneType}. */
 export interface SceneConfig {
   title: string;
   subtitle: string;
+  /**
+   * Unused for now: scene colours come from the global colour scheme (the scheme's
+   * `highlight`). Kept for per-scene colour overrides later.
+   */
   accentColor: string;
   /** Inline JPEG data URL; null shows the default background video. */
   background: string | null;
   /** Auto-return to the scoreboard after this long; null stays on air until the next Take. */
   durationMs: number | null;
-  /** Inline PNG data URL. Scoreboard only: the competition logo on the Semafor template. */
+  /** Inline PNG data URL. Scoreboard only: the competition logo on the Semafor theme. */
   logo: string | null;
-  /** Design of the scene, from SCENE_TEMPLATES (templates.ts); "standard" where a scene has one design. */
-  template: string;
+  /**
+   * The scene's own layout within the theme, from SCENE_LAYOUTS (themes.ts); "standard"
+   * where a scene has one. Stored as `template` before themes were introduced.
+   */
+  layout: string;
 }
 
 /** What the output page shows. Derived locally like the clock: see program.ts. */
@@ -140,29 +147,34 @@ export function defaultSceneConfigs(): SceneConfigs {
 }
 
 export const DEFAULT_SCENE_CONFIGS: SceneConfigs = {
-  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, durationMs: null, template: "standard" },
-  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, template: "standard" },
-  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, durationMs: null, template: "standard" },
-  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, logo: null, durationMs: 15_000, template: "standard" },
-  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, durationMs: 10_000, template: "standard" },
-  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, durationMs: null, template: "standard" },
-  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, template: "standard" },
-  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, template: "standard" },
+  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, durationMs: null, layout: "standard" },
+  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, layout: "standard" },
+  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, durationMs: null, layout: "standard" },
+  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, logo: null, durationMs: 15_000, layout: "standard" },
+  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, durationMs: 10_000, layout: "standard" },
+  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, durationMs: null, layout: "standard" },
+  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, layout: "standard" },
+  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, durationMs: null, layout: "standard" },
 };
 
-/** Scoreboard colours. Which ones a layout uses, and their labels, are in templates.ts. */
-export interface ScoreboardColors {
-  /** Solid background; null plays the default background video. */
+/**
+ * A colour scheme's colours, used by every scene. Which ones a theme's scoreboard uses,
+ * and their labels, are in themes.ts (THEME_COLORS).
+ */
+export interface SchemeColors {
+  /** Solid background behind every scene; null plays the default background video. */
   background: string | null;
   score: string;
   names: string;
   timer: string;
   accent: string;
+  /** Titles, borders and accents on the scenes other than the scoreboard. */
+  highlight: string;
 }
 
-/** The scoreboard's look, stored in workspaces/{ws}/settings/graphics. */
+/** The look of every scene, stored in workspaces/{ws}/settings/graphics. */
 export interface GraphicsSettings {
-  /** A SCOREBOARD_TEMPLATES id (templates.ts). */
-  template: string;
-  colors: ScoreboardColors;
+  /** A THEMES id (themes.ts). Stored as `template` before themes were introduced. */
+  theme: string;
+  colors: SchemeColors;
 }

@@ -5,7 +5,7 @@ import { useTicking } from "@shared/react/hooks";
 import { useLiveData } from "@shared/react/store";
 import { SCENE_TYPES, type GraphicsSettings, type SceneType } from "@shared/types";
 import { useEffect, useState, type CSSProperties } from "react";
-import { SCENES, type SceneTarget } from "./scenes";
+import { SCENES, SemaforStripes, type SceneTarget } from "./scenes";
 
 const isScene = (v: unknown): v is SceneType => (SCENE_TYPES as readonly unknown[]).includes(v);
 
@@ -29,7 +29,7 @@ function usePreviewScene(): SceneType | null {
   return scene;
 }
 
-/** Preview override from the Graphics page: unsaved scoreboard colours, shown only in its preview. */
+/** Preview override from the Graphics page: an unsaved theme and colours, shown only in its preview. */
 function usePreviewGraphics(): GraphicsSettings | null {
   const [graphics, setGraphics] = useState<GraphicsSettings | null>(null);
   useEffect(() => {
@@ -62,19 +62,24 @@ export function Overlay() {
   const target = sceneTarget(data, previewScene !== null);
 
   // A scene's own background image replaces the default video (static, in overlay.html).
-  // Without one, the scoreboard template's background colour (if it has one) does.
+  // Without one, the colour scheme's background colour (if it has one) does.
   const background = data.scenes[scene].background;
-  const bgColor = scene === "scoreboard" && background === null ? data.graphics.colors.background : null;
+  const bgColor = background === null ? data.graphics.colors.background : null;
+  const themeId = data.graphics.theme;
   useEffect(() => {
     document.body.dataset.scene = scene;
+    document.body.dataset.theme = themeId;
     document.body.classList.toggle("has-bg-image", background !== null);
     document.body.classList.toggle("has-bg-color", bgColor !== null);
     document.body.style.backgroundColor = bgColor ?? "";
-  }, [scene, background, bgColor]);
+  }, [scene, themeId, background, bgColor]);
+  // Every scene's accent is the colour scheme's highlight.
+  const accent = { "--accent": data.graphics.colors.highlight } as CSSProperties;
 
   return (
     <>
       <img className="bg-image" src={background ?? undefined} alt="" />
+      {themeId === "semafor" && <SemaforStripes colors={data.graphics.colors} />}
       {SCENE_TYPES.map((type) => {
         const Scene = SCENES[type];
         return (
@@ -82,7 +87,7 @@ export function Overlay() {
             key={type}
             className={type === scene ? "scene active" : "scene"}
             data-layer={type}
-            style={{ "--accent": data.scenes[type].accentColor } as CSSProperties}
+            style={accent}
           >
             <Scene data={data} config={data.scenes[type]} target={target} />
           </section>
