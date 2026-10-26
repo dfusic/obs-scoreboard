@@ -20,7 +20,6 @@ interface SceneProps {
 
 const sideLabel = (side: Side) => (side === "home" ? "Home" : "Away");
 const teamName = (team: TeamProfile | null, side: Side) => team?.name || sideLabel(side);
-const shortName = (team: TeamProfile | null, side: Side) => team?.shortName || teamName(team, side);
 
 /** A team's colours as CSS custom properties. */
 function teamVars(team: TeamProfile | null): CSSProperties | undefined {
@@ -51,19 +50,6 @@ function TeamBlock({ data, side }: { data: LiveData; side: Side }) {
   );
 }
 
-function ScoreLine({ data }: { data: LiveData }) {
-  const { score } = data.match;
-  return (
-    <div className="score-line">
-      <span>{shortName(data.teams.home, "home")}</span>
-      <span className="score-line-num">{score.home}</span>
-      <span className="score-line-sep">:</span>
-      <span className="score-line-num">{score.away}</span>
-      <span>{shortName(data.teams.away, "away")}</span>
-    </div>
-  );
-}
-
 function Scorers({ data, side }: { data: LiveData; side: Side }) {
   return (
     <ul className="scorers">
@@ -80,7 +66,7 @@ function Scorers({ data, side }: { data: LiveData; side: Side }) {
 }
 
 /** Big photo (or the team logo when there is none) next to the player's details. */
-function PlayerFeature({ data, config, target, children }: SceneProps & { children?: ReactNode }) {
+function PlayerFeature({ data, config, target }: SceneProps) {
   const team = data.teams[target.side];
   const { player } = target;
   return (
@@ -95,8 +81,7 @@ function PlayerFeature({ data, config, target, children }: SceneProps & { childr
       <div className="feature-text">
         <Header config={config} />
         <div className="feature-name">{player?.name || teamName(team, target.side)}</div>
-        <div className="feature-meta">{teamName(team, target.side)}</div>
-        {children}
+        {player && <div className="feature-meta">{teamName(team, target.side)}</div>}
       </div>
     </div>
   );
@@ -477,15 +462,22 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
 
   presentation: PresentationScene,
 
-  goal: (props) => {
-    const goal = [...props.data.match.goals].reverse().find((g) => g.side === props.target.side);
-    return (
-      <PlayerFeature {...props}>
-        {goal && <div className="feature-minute">{goalMinute(goal.elapsedMs)}'</div>}
-        <ScoreLine data={props.data} />
-      </PlayerFeature>
-    );
-  },
+  // Taken by hand the moment the ball goes in, before the score is updated: not about one
+  // team or player, so the score updates live on air while the operator records the goal.
+  goal: ({ data, config }) => (
+    <div className="card goal">
+      <Header config={config} />
+      <div className="matchup">
+        <TeamBlock data={data} side="home" />
+        <div className="result-score">
+          {data.match.score.home}
+          <span className="score-line-sep">:</span>
+          {data.match.score.away}
+        </div>
+        <TeamBlock data={data} side="away" />
+      </div>
+    </div>
+  ),
 
   playerCard: (props) => <PlayerFeature {...props} />,
 

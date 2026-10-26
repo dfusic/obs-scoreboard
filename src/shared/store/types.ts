@@ -74,12 +74,14 @@ export interface MatchApi {
   setProgram(program: ProgramState): Promise<void>;
   /** Switches to the given half with the clock set for it (see halfStartClock), in one write. */
   startHalf(half: Half, clock: ClockState): Promise<void>;
-  /** Stops the clock and, if given, puts `program` on air (half time / full time), in one write. */
-  endHalf(clock: ClockState, program: ProgramState | null): Promise<void>;
+  /** Stops the clock at the end of a half. What's on air doesn't change. */
+  endHalf(clock: ClockState): Promise<void>;
   /** Zeroes both scores and clears the goal list. */
   resetScores(): Promise<void>;
-  /** Bumps the score, logs the goal and, if given, puts `program` on air, in one write. */
-  recordGoal(goal: GoalEvent, program: ProgramState | null): Promise<void>;
+  /** Bumps the score and logs the goal, in one write. What's on air doesn't change. */
+  recordGoal(goal: GoalEvent): Promise<void>;
+  /** Sets (or corrects) the scorer of the side's latest goal, based on the caller's `current` state. */
+  setGoalScorer(current: MatchState, side: Side, playerId: string | null): Promise<void>;
   /** Lowers the side's score and drops its latest goal, based on the caller's `current` state. */
   removeLastGoal(current: MatchState, side: Side): Promise<void>;
 }

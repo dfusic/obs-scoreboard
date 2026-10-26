@@ -1,12 +1,11 @@
 import { matchPlayers, sidesWithPlayers } from "@shared/liveFeed";
-import { activeScene, takeScene } from "@shared/program";
-import { useTicking } from "@shared/react/hooks";
+import { takeScene } from "@shared/program";
 import { useLiveData, useStore } from "@shared/react/store";
 import { SCENE_LABELS, SIDES, type SceneType, type Side } from "@shared/types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, cn, Field, ON_AIR, Panel, PanelBody, PanelTitle } from "../ui";
 
-/** One-click scenes. Lineup is per side; goal is taken from the score panel. */
+/** One-click scenes (lineup is per side). GOAL! and the player card have their own controls. */
 const QUICK_TAKES: { scene: SceneType; side?: Side; label: string }[] = [
   { scene: "scoreboard", label: SCENE_LABELS.scoreboard },
   { scene: "welcome", label: SCENE_LABELS.welcome },
@@ -21,14 +20,18 @@ export function ScenePanel() {
   const data = useLiveData();
   const { program } = data.match;
   const sides = sidesWithPlayers(data.match);
-  // Ticks so a timed scene's highlight moves back to the scoreboard on auto-return.
-  const onAir = useTicking((now) => activeScene(program, now));
+  const onAir = program.scene;
 
   const take = (scene: SceneType, side: Side | null = null, playerId: string | null = null) =>
-    void store.match.setProgram(takeScene(scene, data.scenes[scene].durationMs, Date.now(), { side, playerId }));
+    void store.match.setProgram(takeScene(scene, Date.now(), { side, playerId }));
 
   const groups = sides.map((s) => ({ side: s, players: matchPlayers(data, s) })).filter((g) => g.players.length);
   const [chosenId, setChosenId] = useState("");
+  // Once a goal's scorer is set (Score panel), their card is ready to take.
+  const lastScorerId = data.match.goals[data.match.goals.length - 1]?.playerId ?? null;
+  useEffect(() => {
+    if (lastScorerId) setChosenId(lastScorerId);
+  }, [lastScorerId]);
   const cardId = groups.some((g) => g.players.some((p) => p.id === chosenId)) ? chosenId : (groups[0]?.players[0]?.id ?? "");
 
   const takePlayerCard = () => {
@@ -41,6 +44,15 @@ export function ScenePanel() {
     <Panel>
       <PanelTitle>Scenes</PanelTitle>
       <PanelBody>
+        {/* The goal scene alone, the moment the ball goes in: it stays on air while the
+            score and scorer are updated behind it (Score panel), until the next take. */}
+        <Button
+          variant="goal"
+          className={cn("h-14 text-xl tracking-[0.08em]", onAir === "goal" && "ring-2 ring-white ring-inset")}
+          onClick={() => void store.match.setProgram(takeScene("goal", Date.now()))}
+        >
+          GOAL!
+        </Button>
         <div className="grid grid-cols-2 gap-2">
           {QUICK_TAKES.map((t) =>
             t.scene === "lineup" && t.side && !sides.includes(t.side) ? null : (

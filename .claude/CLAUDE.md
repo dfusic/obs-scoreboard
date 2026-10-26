@@ -54,7 +54,7 @@ Everything lives under `workspaces/{WORKSPACE_ID}` (`src/shared/firestore/worksp
 | `live/match` | `MatchState`: `score`, `clock`, `teams` (side → team id), `lineup` (side → ordered player ids), `awayPlayers`, `goals[]`, `program`, `half` | `matchRepo.ts` |
 | `teams/{id}` | `TeamProfile`: name, shortName, city, colours, `logo` | `teamRepo.ts` |
 | `players/{id}` | `Player`: `teamId`, full `name`, `photo` (PNG cut-out) | `playerRepo.ts` |
-| `scenes/{sceneType}` | `SceneConfig`: title, subtitle, `background`, `logo` (scoreboard: competition logo), `durationMs`, `layout` (accentColor unused) | `sceneRepo.ts` |
+| `scenes/{sceneType}` | `SceneConfig`: title, subtitle, `background`, `logo` (scoreboard: competition logo), `layout` (accentColor unused) | `sceneRepo.ts` |
 | `settings/graphics` | `GraphicsSettings`: global `theme` id + colour scheme `colors` | `graphicsRepo.ts` |
 
 `firestore.rules`: anyone can read `workspaces/**`, and only signed-in users can write. The old `matches/current` doc is no longer used. Its rule is kept so older deployed overlays still load.
@@ -71,11 +71,13 @@ Everything lives under `workspaces/{WORKSPACE_ID}` (`src/shared/firestore/worksp
 
 **Clock.** `ClockState` = `{ running, startEpochMs, accumulatedMs }`. Every client derives elapsed time locally (`computeElapsedMs`) and re-renders on a 250 ms `setInterval`. Firestore is written only on start/pause/adjust, so reloads and network blips cause no drift.
 
-**Program (what's on air).** `ProgramState` = `{ scene, side, playerId, startedAtMs, autoReturnMs }`. `activeScene()` in `src/shared/program.ts` derives the visible scene locally. A timed scene (goal: 15 s by default, player card: 10 s) falls back to the scoreboard once `startedAtMs + autoReturnMs` has passed, with no extra write. "Take" = `store.match.setProgram(takeScene(...))`. `recordGoal()` bumps the score, appends a `GoalEvent` (with the match time, computed by the caller) and optionally takes the goal scene, all in one write. `removeLastGoal()` is the undo.
+**Program (what's on air).** `ProgramState` = `{ scene, side, playerId, startedAtMs }`. **Nothing changes scenes automatically:** a scene stays on air until the operator takes another one (no timers or auto-return; the old `autoReturnMs` / `durationMs` fields may linger on stored docs and are ignored). "Take" = `store.match.setProgram(takeScene(scene, Date.now(), target))`. `removeLastGoal()` undoes a goal.
+
+**Goal flow**, every step manual: only the Scenes panel changes what's on air, the Score panel only edits data. 1) **GOAL!** (Scenes panel) takes the goal scene, which is generic: title, both crests and the live score. 2) Behind it, **+** (Score panel) = `recordGoal()` (bumps the score, appends a `GoalEvent` with no scorer and the match time computed by the caller), so the score changes on air, and opens "Who scored?"; picking = `setGoalScorer()` (`withLastScorer()` in `src/shared/goals.ts`, from the caller's snapshot), now or later via Set/Change scorer. 3) The Scenes panel's player card selector jumps to the latest goal's scorer: Take. 4) **Scoreboard**.
 
 **Player intro** (`presentation` scene) shows one lineup player at a time and stays on air. The operator steps with Prev/Next (`stepLineup()`), arrow keys or PageUp/PageDown (presenter clickers) on the Live page, timed to the commentary. `PresentationPanel.tsx` remembers its last take until the snapshot catches up, so fast double presses advance twice.
 
-**Halves.** `match.half` (1 or 2) labels the scoreboard. The Live timer's half buttons call `startHalf()` with `halfStartClock()` (stopped at 00:00 / 45:00, in `clock.ts`); End half pauses and takes half time (1st) or full time (2nd) in one `endHalf()` write. Full reset goes back to the 1st half.
+**Halves.** `match.half` (1 or 2) labels the scoreboard. The Live timer's half buttons call `startHalf()` with `halfStartClock()` (stopped at 00:00 / 45:00, in `clock.ts`); End half (`endHalf()`) only pauses the clock; half time / full time are taken from the Scenes panel. Full reset goes back to the 1st half.
 
 **Match writes never fail silently.** All Firestore match updates go through `updateMatch()` (`firestore/matchRepo.ts`), which recreates a missing `live/match` doc and retry. The control page shows a top-bar warning for any rejected Firestore write (`unhandledrejection`), and every `onSnapshot` has an error handler (`logSubscriptionError`), because a failed listener stops for good. Each dashboard panel sits in a `PanelBoundary`, so one crashing panel doesn't take the others down.
 
@@ -88,7 +90,7 @@ Everything lives under `workspaces/{WORKSPACE_ID}` (`src/shared/firestore/worksp
 - Live panels are in `src/control/live/` (`LivePage.tsx` lays them out), the Teams page in `src/control/teams/` (`TeamsPage.tsx` cards, `Roster.tsx` squad), the Graphics page in `src/control/graphics/` (`GraphicsPage.tsx` owns the selected scene tab and the unsaved scoreboard draft).
 - Shared building blocks are in `src/control/ui.tsx`: `Panel`/`PanelTitle`/`PanelBody`, `Button` with variants, `CommitInput`, `Thumb`, `UploadButton` + `useImageUpload`, `PanelBoundary`.
 - **Styling is Tailwind v4**, configured CSS-first in `src/control/index.css` (`@theme` tokens such as `bg-panel`, `text-dim`, `border-line-strong`; global form/button styles in `@layer base`). Merge classes with `cn()` (tailwind-merge), so a `className` overrides a variant. Only the control page imports Tailwind.
-- **Time-derived UI** (clocks, on-air highlight, countdowns) uses `useTicking(nowMs => value)` (`src/shared/react/hooks.ts`) in the smallest component possible. It checks every 250 ms but re-renders only when the value changes.
+- **Time-derived UI** (clocks) uses `useTicking(nowMs => value)` (`src/shared/react/hooks.ts`) in the smallest component possible. It checks every 250 ms but re-renders only when the value changes.
 - Text fields use `CommitInput`: saves on native `change` (blur/Enter/closing a colour picker), not per keystroke, and snapshots don't overwrite a focused field. Give it (or its form) a `key` per record so switching records resets it.
 - React escapes text, so user input is safe in JSX. Never use `dangerouslySetInnerHTML` with user text; the output page is public.
 - **Previews** (`src/control/OutputPreview.tsx`) embed the real output page in an iframe scaled from the 2304x1024 canvas. The Graphics preview forces a scene through `postMessage({ type: "preview-scene", scene })` (or `?scene=`) and unsaved scoreboard colours through `postMessage({ type: "preview-graphics", graphics })`. The output page then shows them locally without going on air. The Graphics preview iframe is created on first visit only.
