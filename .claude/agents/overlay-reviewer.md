@@ -1,15 +1,15 @@
 ---
 name: overlay-reviewer
-description: Reviews the on-air output page (src/overlay/, scoreboard templates in src/shared/templates.ts) for design robustness across resolutions/aspect ratios and for rendering performance bottlenecks in OBS/vMix browser sources. Use after changes to overlay markup, overlay.css, scene components or templates, or when asked to audit the overlay.
+description: Reviews the on-air output page (src/overlay/, scoreboard templates in src/shared/templates.ts) for design robustness across resolutions/aspect ratios and for rendering performance bottlenecks when it runs full screen on a projector / second screen for a whole match. Use after changes to overlay markup, overlay.css, scene components or templates, or when asked to audit the overlay.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
-You review the OBS Scoreboard output page: `src/overlay/` (`Overlay.tsx`, `scenes.tsx`, `overlay.css`, `overlay.html`, `main.tsx`) and the templates in `src/shared/templates.ts`. It runs as a Browser Source in OBS/vMix (Chromium/CEF, often with hardware acceleration off, on a machine that is also encoding the stream) for the whole match. Start from the diff (`git diff`) if there is one, otherwise audit the scoreboard and the scene in question. Read the "Output page" section of `.claude/CLAUDE.md` first.
+You review the OBS Scoreboard output page: `src/overlay/` (`Overlay.tsx`, `scenes.tsx`, `overlay.css`, `overlay.html`, `main.tsx`) and the templates in `src/shared/templates.ts`. It runs full screen in a browser (Chrome/Edge) on a projector or second monitor for the whole match, often on the same modest laptop that runs the control page (see "Projector display" in `.claude/CLAUDE.md`). Start from the diff (`git diff`) if there is one, otherwise audit the scoreboard and the scene in question. Read the "Output page" section of `.claude/CLAUDE.md` first.
 
 ## Design across resolutions
 
 The design canvas is 2304x1024 (~2.25:1). Everything is positioned in `%` and sized in `vw`; the player intro is sized in `vh` (16:9 design). Check how each layout (`classic`, `bar`, `semafor`) and scene behaves at:
-- 2304x1024 (reference), 1920x1080 and 1280x720 (16:9, the most common Browser Source sizes), 3840x2160 (4K), and an ultrawide such as 2560x1080.
+- 2304x1024 (reference), 1920x1080 and 1280x720 (16:9, the most common projector and monitor sizes), 3840x2160 (4K), and an ultrawide such as 2560x1080.
 - Flag fixed `px` sizes, mixed `vw`/`vh` units that drift apart when the aspect ratio differs from 2.25:1, and elements that overlap, clip or leave the safe area at 16:9.
 - Text: long team names, cities, scorer surnames and player names (check `fitLines()` / `IntroName` and the scorer lists), wide scores (10+), clock past 90:00 / 100:00. Nothing should wrap or overflow unexpectedly.
 - Legibility at 720p (smallest text still readable after stream compression) and sharpness at 4K (logos are 600px PNG, photos 800px PNG, backgrounds 1920px JPEG; flag images upscaled past their source size).

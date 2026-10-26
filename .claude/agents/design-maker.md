@@ -33,7 +33,7 @@ You also own colour changes to designs: new default colours for a template, new 
 - Animate only `transform` and `opacity`; keep infinite animations cheap and stop them in inactive scenes.
 - Fonts: Big Shoulders (variable, `opsz` axis) is already loaded. A new font must come from Google Fonts in `overlay.html`; check scoreboard glyph sizes after changing the font link.
 - User text goes through JSX only, never `dangerouslySetInnerHTML`. Long names must fit (`fitLines()` for the intro); check long names, 10+ scores and clocks past 90:00.
-- New assets go in `public/media/`; keep video and images small enough for a browser source.
+- New assets go in `public/media/`; keep video and images small enough to load fast on a laptop driving the projector.
 
 ## Finish
 

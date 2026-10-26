@@ -1,4 +1,5 @@
 import { APP_ENV } from "@shared/env";
+import { OUTPUT_CHANNEL, type OutputFullscreenMessage, type OutputStateMessage } from "@shared/outputWindow";
 import { useSubscription } from "@shared/react/hooks";
 import { LiveDataProvider, useStore } from "@shared/react/store";
 import type { AppUser, SyncStatus } from "@shared/store";
@@ -260,14 +261,87 @@ const OpenIcon = () =>
     </>,
   );
 
+const FullscreenIcon = () =>
+  icon(
+    <>
+      <polyline points="15 3 21 3 21 9" />
+      <polyline points="9 21 3 21 3 15" />
+      <polyline points="21 15 21 21 15 21" />
+      <polyline points="3 9 3 3 9 3" />
+    </>,
+  );
+
+const ExitFullscreenIcon = () =>
+  icon(
+    <>
+      <polyline points="4 14 10 14 10 20" />
+      <polyline points="20 10 14 10 14 4" />
+      <polyline points="14 20 14 14 20 14" />
+      <polyline points="10 4 10 10 4 10" />
+    </>,
+  );
+
 const sidebarIconButton = cn(
   "flex size-8 shrink-0 items-center justify-center rounded-sm border border-line-strong bg-transparent p-0 text-muted",
   "hover:bg-control hover:text-fg hover:opacity-100",
 );
 
-/** The output page's address, to paste into the OBS / vMix Browser Source. */
+/** The output window this page opened on a screen, as it last reported itself. */
+interface OutputWindow {
+  win: Window;
+  fullscreen: boolean;
+}
+
+/**
+ * Tracks the output window opened from this page: it reports to its opener on load, on every
+ * fullscreen change and when it closes. After a reload of this page, asks it to report again.
+ */
+function useOutputWindow(): OutputWindow | null {
+  const [output, setOutput] = useState<OutputWindow | null>(null);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent<OutputStateMessage>) => {
+      if (e.origin !== location.origin || e.data?.type !== "output-state") return;
+      const win = e.source as Window | null;
+      setOutput(e.data.open && win ? { win, fullscreen: e.data.fullscreen } : null);
+    };
+    window.addEventListener("message", onMessage);
+    const channel = new BroadcastChannel(OUTPUT_CHANNEL);
+    channel.postMessage("report");
+    return () => {
+      window.removeEventListener("message", onMessage);
+      channel.close();
+    };
+  }, []);
+  return output && !output.win.closed ? output : null;
+}
+
+/** `postMessage` options with capability delegation (Chrome/Edge 104+; not in TypeScript's DOM lib yet). */
+type DelegatingPostMessageOptions = WindowPostMessageOptions & { delegate?: "fullscreen" };
+
+/**
+ * Puts the output window into fullscreen (or back). Fullscreen needs a click in the window going
+ * fullscreen, so this click is passed on with the message. Where the browser can't delegate it,
+ * the output window goes fullscreen on its first click or key press instead.
+ */
+function FullscreenButton({ output }: { output: OutputWindow }) {
+  const toggle = () => {
+    const message: OutputFullscreenMessage = { type: "output-fullscreen", on: !output.fullscreen };
+    const options: DelegatingPostMessageOptions = { targetOrigin: location.origin, delegate: "fullscreen" };
+    output.win.postMessage(message, options);
+  };
+  const label = output.fullscreen ? "Exit fullscreen on the output screen" : "Fullscreen on the output screen";
+  return (
+    <button type="button" onClick={toggle} aria-pressed={output.fullscreen} aria-label={label} title={label}
+      className={cn(sidebarIconButton, !output.fullscreen && "border-warning text-warning")}>
+      {output.fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+    </button>
+  );
+}
+
+/** The output page's address and the window showing it on a projector / second screen. */
 function OverlayLink() {
   const url = overlayUrl();
+  const output = useOutputWindow();
   const [copied, setCopied] = useState(false);
   const urlRef = useRef<HTMLInputElement>(null);
 
@@ -291,10 +365,16 @@ function OverlayLink() {
     <div className="flex flex-col gap-1.5 border-t border-line px-[22px] py-3 max-[820px]:flex-row max-[820px]:border-t-0 max-[820px]:px-1.5">
       <div className="flex items-center justify-between text-[11px] text-faint max-[820px]:hidden">
         Overlay URL
-        {copied && (
+        {copied ? (
           <span role="status" className="font-semibold text-success">
             Copied
           </span>
+        ) : (
+          output && (
+            <span role="status" className={cn("font-semibold", output.fullscreen ? "text-success" : "text-warning")}>
+              {output.fullscreen ? "Fullscreen" : "Not fullscreen"}
+            </span>
+          )
         )}
       </div>
       <div className="flex items-center gap-1.5">
@@ -311,6 +391,7 @@ function OverlayLink() {
           <CopyIcon />
         </button>
         <OpenOverlay url={url} />
+        {output && <FullscreenButton output={output} />}
       </div>
     </div>
   );

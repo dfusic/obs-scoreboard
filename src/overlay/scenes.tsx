@@ -147,9 +147,12 @@ function PresentationScene({ data, config, target }: SceneProps) {
 /** Marquee speed, in screen widths per second. */
 const MARQUEE_SPEED = 0.25;
 
+/** The Classic goal scene's scrolling text. */
+const GOAL_MARQUEE_TEXT = "GOOOOOL";
+
 /**
- * "Large text" welcome: the title (and subtitle) in screen-high letters, scrolling left
- * to right on an endless loop. The track holds two identical groups and moves by one
+ * "Large text" welcome: the title (and subtitle) in screen-high letters, scrolling right
+ * to left on an endless loop. The track holds two identical groups and moves by one
  * group's width per cycle, so the loop is seamless. Each group repeats the phrase enough
  * times to cover the screen, and the duration follows its width so the speed is constant.
  */
@@ -464,20 +467,24 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
 
   // Taken by hand the moment the ball goes in, before the score is updated: not about one
   // team or player, so the score updates live on air while the operator records the goal.
-  goal: ({ data, config }) => (
-    <div className="card goal">
-      <Header config={config} />
-      <div className="matchup">
-        <TeamBlock data={data} side="home" />
-        <div className="result-score">
-          {data.match.score.home}
-          <span className="score-line-sep">:</span>
-          {data.match.score.away}
+  // Classic shows the cry instead, scrolling in screen-high letters like the large-text welcome.
+  goal: ({ data, config }) =>
+    theme(data.graphics.theme).id === "classic" ? (
+      <Marquee title={GOAL_MARQUEE_TEXT} subtitle={config.subtitle} />
+    ) : (
+      <div className="card goal">
+        <Header config={config} />
+        <div className="matchup">
+          <TeamBlock data={data} side="home" />
+          <div className="result-score">
+            {data.match.score.home}
+            <span className="score-line-sep">:</span>
+            {data.match.score.away}
+          </div>
+          <TeamBlock data={data} side="away" />
         </div>
-        <TeamBlock data={data} side="away" />
       </div>
-    </div>
-  ),
+    ),
 
   playerCard: (props) => <PlayerFeature {...props} />,
 

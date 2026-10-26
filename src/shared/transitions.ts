@@ -11,7 +11,7 @@
  *   the team logo, and opens on the new one. The scene changes while fully covered.
  *
  * Everything runs on a 30 fps frame clock: progress only moves in whole frames of
- * 1/30 s, so a transition looks the same in OBS (30 fps) as in a browser. To add a
+ * 1/30 s, so a transition looks the same on any screen and frame rate. To add a
  * transition, add it to TRANSITIONS; a cover also needs markup in Transition.tsx and CSS.
  */
 export type TransitionKind = "cut" | "fade" | "popup" | "cover";

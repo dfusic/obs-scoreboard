@@ -1,5 +1,5 @@
 /* Designed for a 2304x1024 (~2.25:1) canvas. Everything is positioned in % and
-   sized in vw so it scales with any same-aspect Browser Source resolution. */
+   sized in vw so it scales with any screen or window of the same aspect ratio. */
 
 html,
 body {
@@ -14,6 +14,11 @@ body {
      cut the scoreboard was designed with; scenes override it where their design differs. */
   font-optical-sizing: none;
   font-variation-settings: "opsz" 14;
+}
+
+/* No mouse pointer on the projector. */
+html:fullscreen {
+  cursor: none;
 }
 
 .bg-video {
@@ -538,7 +543,7 @@ body[data-theme="semafor"] .intro-default-bg {
   text-align: center;
 }
 
-/* Welcome "Large text": screen-high letters scrolling left to right, on repeat.
+/* Welcome "Large text" and the Classic goal: screen-high letters scrolling right to left, on repeat.
    The track is two identical groups; moving it by one group (50%) loops seamlessly. */
 .marquee {
   position: absolute;
@@ -557,10 +562,10 @@ body[data-theme="semafor"] .intro-default-bg {
 
 @keyframes marquee {
   from {
-    transform: translateX(-50%);
+    transform: translateX(0);
   }
   to {
-    transform: translateX(0);
+    transform: translateX(-50%);
   }
 }
 

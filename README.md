@@ -2,7 +2,7 @@
 
 Live football broadcast graphics, synced through Firebase. No server to run: everything is static, hosted free on GitHub Pages.
 
-- **Output page**: one page that draws every on-air graphic: scoreboard, welcome screen, player intro, goal scorer, player card, lineup, and half/full time. Add it once as a Browser Source (OBS, vMix, Streamyard, or any capture tool). No per-graphic scenes are needed in OBS.
+- **Output page**: one page that draws every on-air graphic: scoreboard, welcome screen, player intro, goal scorer, player card, lineup, and half/full time. Open it full screen in a browser on a projector or second monitor while the operator keeps the control dashboard on their own screen. No broadcast software is needed.
 - **Control dashboard**, with two pages:
   - **Live**: pre-match lineup (tick who plays, drag into order), player intro stepped with Prev/Next or arrow keys, score, clock, "Goal!" with scorer picker, one-click scene switching, and a live preview of the output.
   - **Setup**: teams (name, colours, logo), squads (full name + PNG photo; add a whole squad at once from photo files), and scene templates (title, subtitle, accent colour, background, auto-return time).
@@ -26,7 +26,7 @@ Live football broadcast graphics, synced through Firebase. No server to run: eve
     ```
     Or just paste the contents of [firestore.rules](firestore.rules) into the **Firestore Database → Rules** tab in the console and click Publish — simpler for a one-time setup.
 
-**Auth:** the control dashboard has a username/password login (Firebase Authentication). [firestore.rules](firestore.rules) lets anyone *read* the match (so the OBS overlay needs no login) but only signed-in users *write*. To set it up:
+**Auth:** the control dashboard has a username/password login (Firebase Authentication). [firestore.rules](firestore.rules) lets anyone *read* the match (so the output page needs no login) but only signed-in users *write*. To set it up:
 
 1. Firebase console → **Build → Authentication → Get started → Sign-in method → Email/Password → Enable**.
 2. **Authentication → Users → Add user**. The login form takes a plain *username*; it is turned into `<username>@scoreboard.local`, so for username `admin` create the user `admin@scoreboard.local` with your password. (Typing a full email in the username box also works.)
@@ -45,22 +45,19 @@ Live football broadcast graphics, synced through Firebase. No server to run: eve
 
    (Vite preserves the `src/overlay/overlay.html` path in the build output since that's the entry point location — confirm the exact built path by checking `dist/` after a build, or check the Pages deployment's file listing.)
 
-### 3. Add to OBS
+### 3. Show it on a projector or second screen
 
-**Output (all on-air graphics):**
-1. Sources → **+** → **Browser Source**.
-2. URL: your deployed overlay URL.
-3. Width/Height: a ~2.25:1 size matching the design canvas (e.g. `2304` × `1024`). The graphics scale to any size of that aspect ratio.
-4. Leave "Shutdown source when not visible" **unchecked** so the clock and Firestore connection persist.
+The operator runs the control dashboard on their own device, and the output page is shown full screen on a projector or second monitor connected to it. Chrome or Edge is recommended.
 
-Switching between the scoreboard, welcome, goal and other graphics happens on the dashboard's **Live** page. You don't need a separate OBS scene for each one. Any other tool that can show a web page (vMix, Streamyard, a hardware switcher) works the same way.
+1. Connect the projector / second monitor and set the display to **extend** (not duplicate).
+2. Log in to the control dashboard. In the sidebar, under **Overlay URL**, click **Open** (↗) and pick the projector's screen. The first time, the browser asks for "window management" permission: allow it.
+3. Click the **Fullscreen** button that appears next to it (highlighted while the output isn't fullscreen yet). The output fills the projector with no browser frame or mouse pointer, and your own screen keeps the dashboard. Click it again to leave fullscreen.
+   - In other browsers, or with the output opened in a normal tab, click once anywhere on the output (or press any key there) to make it fullscreen. Esc leaves fullscreen.
+4. The output keeps the display awake (Screen Wake Lock), so the projector and computer don't sleep or start a screensaver during the match. Keep the output window visible (not minimised).
 
-**Control panel (operator UI, inside OBS):**
-1. Docks → **Custom Browser Docks**.
-2. Dock name: `Scoreboard Control`. URL: your deployed control URL.
-3. It'll appear as a dockable panel in the OBS window — drag it wherever's convenient.
+The graphics are designed for a ~2.25:1 canvas (2304 × 1024) and scale to any screen of that aspect ratio. Switching between the scoreboard, welcome, goal and other graphics happens on the dashboard's **Live** page.
 
-You can also just open the control URL in a normal browser tab (phone, tablet, second laptop) — it works identically outside OBS.
+The control URL also works in any other browser (phone, tablet, second laptop): every logged-in dashboard controls the same output.
 
 ## Environments
 
@@ -81,7 +78,7 @@ npm install
 npm run dev
 ```
 
-This starts the Firebase Auth + Firestore emulators, creates the login **admin / admin123**, and runs Vite. Open the printed URLs for `src/overlay/overlay.html` and `src/control/control.html` in two tabs to simulate the OBS split. The Emulator UI at http://127.0.0.1:4000 shows the data. Local data is saved to `.emulator-data/` when you stop with Ctrl+C. Delete that folder to start fresh.
+This starts the Firebase Auth + Firestore emulators, creates the login **admin / admin123**, and runs Vite. Open the printed URLs for `src/overlay/overlay.html` and `src/control/control.html` in two tabs (or two windows on two screens) to simulate the operator and projector setup. The Emulator UI at http://127.0.0.1:4000 shows the data. Local data is saved to `.emulator-data/` when you stop with Ctrl+C. Delete that folder to start fresh.
 
 Local development never touches a real Firebase project: the `demo-` project id makes Firebase refuse any cloud access. To run the UI locally against staging data instead, use `npm run dev:staging`.
 
