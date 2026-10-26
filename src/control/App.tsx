@@ -2,7 +2,7 @@ import { APP_ENV } from "@shared/env";
 import { useSubscription } from "@shared/react/hooks";
 import { LiveDataProvider, useStore } from "@shared/react/store";
 import type { AppUser, SyncStatus } from "@shared/store";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import { GraphicsPage } from "./graphics/GraphicsPage";
 import { LivePage } from "./live/LivePage";
 import { overlayUrl } from "./OutputPreview";
@@ -310,11 +310,105 @@ function OverlayLink() {
         <button type="button" onClick={() => void copy()} aria-label="Copy overlay URL" title="Copy" className={sidebarIconButton}>
           <CopyIcon />
         </button>
-        <a href={url} target="_blank" rel="noreferrer" aria-label="Open overlay" title="Open in a new tab"
-          className={sidebarIconButton}>
-          <OpenIcon />
-        </a>
+        <OpenOverlay url={url} />
       </div>
+    </div>
+  );
+}
+
+/** The Window Management API (Chromium only; not in TypeScript's DOM lib yet). */
+interface ScreenDetailed extends Screen {
+  readonly availLeft: number;
+  readonly availTop: number;
+  readonly isPrimary: boolean;
+  readonly label: string;
+}
+type WindowManagement = Window & { getScreenDetails?: () => Promise<{ screens: ScreenDetailed[] }> };
+const canPickScreen = () =>
+  typeof (window as WindowManagement).getScreenDetails === "function" &&
+  (screen as Screen & { isExtended?: boolean }).isExtended === true;
+
+const OVERLAY_WINDOW = "scoreboard-overlay";
+
+/** Opens the output page in a window covering one screen (re-choosing moves that same window). */
+function openOnScreen(url: string, s: ScreenDetailed) {
+  const { availLeft: left, availTop: top, availWidth: width, availHeight: height } = s;
+  const win = window.open(url, OVERLAY_WINDOW, `popup,left=${left},top=${top},width=${width},height=${height}`);
+  win?.moveTo(left, top);
+  win?.resizeTo(width, height);
+  win?.focus();
+}
+
+/**
+ * Opens the output page. With several screens (Chrome/Edge) it asks which one, opening a window
+ * there; the browser asks once for "window management" permission. Otherwise a normal new tab.
+ */
+function OpenOverlay({ url }: { url: string }) {
+  const [screens, setScreens] = useState<ScreenDetailed[] | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!screens) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setScreens(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setScreens(null);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [screens]);
+
+  const onClick = async (e: MouseEvent) => {
+    if (!canPickScreen()) return; // plain link: new tab
+    e.preventDefault();
+    if (screens) return setScreens(null);
+    try {
+      setScreens((await (window as WindowManagement).getScreenDetails!()).screens);
+    } catch {
+      // Permission denied: the menu still offers a new tab.
+      setScreens([]);
+    }
+  };
+
+  const menuItem = "block w-full rounded-sm border-0 bg-transparent px-2.5 py-2 text-left font-sans text-xs font-medium tracking-normal normal-case text-soft no-underline hover:bg-control hover:text-fg hover:opacity-100";
+
+  return (
+    <div ref={menuRef} className="relative">
+      <a href={url} target="_blank" rel="noreferrer" onClick={(e) => void onClick(e)} aria-label="Open overlay"
+        aria-haspopup={canPickScreen() ? "menu" : undefined} aria-expanded={screens ? true : undefined}
+        title={canPickScreen() ? "Open on a screen" : "Open in a new tab"} className={sidebarIconButton}>
+        <OpenIcon />
+      </a>
+      {screens && (
+        <div role="menu"
+          className={cn(
+            "absolute right-0 bottom-full z-20 mb-1.5 flex w-56 flex-col gap-0.5 rounded-md border border-line-strong bg-panel p-1 shadow-lg",
+            "max-[820px]:top-full max-[820px]:bottom-auto max-[820px]:mt-1.5 max-[820px]:mb-0",
+          )}>
+          <div className="px-2.5 pt-1.5 pb-1 text-[11px] text-faint">Open the overlay on</div>
+          {screens.map((s, i) => (
+            <button key={i} type="button" role="menuitem" className={menuItem}
+              onClick={() => {
+                openOnScreen(url, s);
+                setScreens(null);
+              }}>
+              {s.label || `Screen ${i + 1}`}
+              <span className="ml-1.5 text-faint">
+                {s.width}×{s.height}{s.isPrimary && " · main"}
+              </span>
+            </button>
+          ))}
+          <a href={url} target="_blank" rel="noreferrer" role="menuitem" className={menuItem}
+            onClick={() => setScreens(null)}>
+            New tab
+          </a>
+        </div>
+      )}
     </div>
   );
 }

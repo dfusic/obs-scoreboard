@@ -1,10 +1,10 @@
 import { useLiveData, useStore } from "@shared/react/store";
-import { sameGraphics, templateSettings } from "@shared/templates";
+import { sameGraphics, scoreboardTemplate, templateSettings } from "@shared/templates";
 import { SCENE_LABELS, SCENE_TYPES, type GraphicsSettings, type SceneType } from "@shared/types";
 import { useEffect, useState } from "react";
 import { OutputPreview } from "../OutputPreview";
 import { Button, cn, Hint, PageBody, PageHeader, Panel, PanelBoundary, PanelTitle } from "../ui";
-import { SceneSettingsPanel } from "./SceneSettingsPanel";
+import { CompetitionPanel, SceneSettingsPanel } from "./SceneSettingsPanel";
 import { ColorsPanel, TemplatePicker } from "./ScoreboardTemplates";
 
 /**
@@ -73,6 +73,11 @@ export function GraphicsPage({ hidden, previewEnabled }: { hidden: boolean; prev
                   onSave={() => draft && void store.graphics.save(draft)}
                   onDiscard={() => setDraft(null)}
                 />
+              </PanelBoundary>
+            )}
+            {selected === "scoreboard" && scoreboardTemplate(shown.template).layout === "semafor" && (
+              <PanelBoundary name="Competition">
+                <CompetitionPanel />
               </PanelBoundary>
             )}
             <PanelBoundary name="Scene settings">

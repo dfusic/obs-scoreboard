@@ -251,11 +251,160 @@ function BarSide({ data, side }: { data: LiveData; side: Side }) {
   );
 }
 
-/** The scoreboard in the chosen template's layout (shared/templates.ts) and colours. */
-function ScoreboardScene({ data }: SceneProps) {
+/** Semafor stripe geometry, in the 2304x1024 canvas: concentric bands around a centre off-screen top right. */
+const STRIPE_CENTER = { x: 2800, y: -1300 };
+
+/**
+ * Each band is two dashed rings a little apart, so where only one of them has a dash
+ * the band steps in or out, and where neither has one it breaks. A band turns as one
+ * piece at its own slow speed (alternating direction), so the steps travel along it.
+ * Seeded, so every client draws the same bands.
+ */
+const STRIPE_BANDS = (() => {
+  let seed = 7;
+  const rand = (min: number, max: number) => {
+    seed = (seed * 16807) % 2147483647;
+    return min + ((seed - 1) / 2147483646) * (max - min);
+  };
+  const dashes = () => Array.from({ length: 6 }, (_, i) => Math.round(i % 2 ? rand(120, 320) : rand(420, 1100))).join(" ");
+  return Array.from({ length: 12 }, (_, i) => {
+    const r = 1150 + i * 235;
+    return {
+      r,
+      dashesA: dashes(),
+      dashesB: dashes(),
+      offsetB: Math.round(rand(0, 900)),
+      // About 30-55 canvas px per second along the band, whatever its radius.
+      durationS: Math.round((2 * Math.PI * r) / rand(30, 55)),
+      reverse: i % 2 === 1,
+    };
+  });
+})();
+
+/** Never re-renders: the bands move by CSS animation and take their colour from --sb-accent. */
+const SemaforStripes = memo(function SemaforStripes() {
+  return (
+    <svg className="sem-stripes" viewBox="0 0 2304 1024" preserveAspectRatio="xMidYMid slice" aria-hidden>
+      {STRIPE_BANDS.map((band) => (
+        <g
+          key={band.r}
+          className="sem-band"
+          style={
+            {
+              transformOrigin: `${STRIPE_CENTER.x}px ${STRIPE_CENTER.y}px`,
+              animationDuration: `${band.durationS}s`,
+              animationDirection: band.reverse ? "reverse" : "normal",
+            } as CSSProperties
+          }
+        >
+          <circle cx={STRIPE_CENTER.x} cy={STRIPE_CENTER.y} r={band.r} strokeDasharray={band.dashesA} />
+          <circle
+            cx={STRIPE_CENTER.x}
+            cy={STRIPE_CENTER.y}
+            r={band.r + 32}
+            strokeDasharray={band.dashesB}
+            strokeDashoffset={band.offsetB}
+          />
+        </g>
+      ))}
+    </svg>
+  );
+});
+
+const SemaforClock = memo(function SemaforClock({ clock }: { clock: ClockState }) {
+  const [minutes, seconds] = useTicking((now) => formatClock(clock, now)).split(":");
+  return (
+    <div className="sem-clock">
+      <span>{minutes}</span>
+      <span className="sem-clock-sep" />
+      <span>{seconds}</span>
+    </div>
+  );
+});
+
+/** Scorers by surname, as on the Semafor design ("HARAČI 12'"); just the minute when the scorer is unknown. */
+function SemaforScorers({ data, side }: { data: LiveData; side: Side }) {
+  return (
+    <ul className="sem-scorers">
+      {data.match.goals.map((g, i) => {
+        if (g.side !== side) return null;
+        const name = g.playerId ? data.players.get(g.playerId)?.name : undefined;
+        return (
+          <li key={i}>
+            {name && `${splitName(name)[1]} `}
+            {goalMinute(g.elapsedMs)}'
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Semafor: red background with black stripes turning slowly, under a dark panel that
+ * blurs them. Names and cities over the clock, then crests (with scorers), the
+ * competition logo and the score. The competition logo is the scoreboard scene's logo;
+ * without one, the scene's title and subtitle are shown instead.
+ */
+function SemaforScoreboard({ data, config }: SceneProps) {
   const { score } = data.match;
   const { colors } = data.graphics;
-  if (scoreboardTemplate(data.graphics.template).layout === "bar") {
+  const style = { ...scoreboardVars(colors), "--sb-bg": colors.background ?? "transparent" } as CSSProperties;
+  const name = (side: Side) => {
+    const team = data.teams[side];
+    return (
+      <div className="sem-team">
+        <div className="sem-name">{teamName(team, side)}</div>
+        {team?.city && <div className="sem-city">{team.city}</div>}
+      </div>
+    );
+  };
+  const crest = (side: Side) => (
+    <div className="sem-side">
+      <img className="sem-crest" src={data.teams[side]?.logo ?? undefined} alt="" />
+      <SemaforScorers data={data} side={side} />
+    </div>
+  );
+  return (
+    <div className="sb-semafor" style={style}>
+      <SemaforStripes />
+      <div className="sem-panel">
+        {name("home")}
+        <SemaforClock clock={data.match.clock} />
+        {name("away")}
+        <div className="sem-rule" />
+        {crest("home")}
+        <div className="sem-center">
+          <div className="sem-competition">
+            {config.logo ? (
+              <img src={config.logo} alt="" />
+            ) : (
+              <>
+                {config.title && <div>{config.title}</div>}
+                {config.subtitle && <div>{config.subtitle}</div>}
+              </>
+            )}
+          </div>
+          <div className="sem-score">
+            <span>{score.home}</span>
+            <span className="sem-score-sep" />
+            <span>{score.away}</span>
+          </div>
+        </div>
+        {crest("away")}
+      </div>
+    </div>
+  );
+}
+
+/** The scoreboard in the chosen template's layout (shared/templates.ts) and colours. */
+function ScoreboardScene(props: SceneProps) {
+  const { data } = props;
+  const { score } = data.match;
+  const { colors } = data.graphics;
+  const { layout } = scoreboardTemplate(data.graphics.template);
+  if (layout === "semafor") return <SemaforScoreboard {...props} />;
+  if (layout === "bar") {
     return (
       <div className="sb-bar" style={scoreboardVars(colors)}>
         <BarSide data={data} side="home" />

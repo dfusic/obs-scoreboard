@@ -5,7 +5,7 @@ import type { GraphicsSettings, SceneType, ScoreboardColors } from "./types";
  * picks one on the Graphics page and can then change its colours. To add a template,
  * add an entry here (a new layout also needs markup in overlay/scenes.tsx and CSS).
  */
-export type ScoreboardLayout = "classic" | "bar";
+export type ScoreboardLayout = "classic" | "bar" | "semafor";
 
 export interface ScoreboardTemplate {
   id: string;
@@ -31,6 +31,13 @@ export const LAYOUT_COLORS: Record<ScoreboardLayout, { key: ScoreboardColorKey; 
     { key: "timer", label: "Timer" },
     { key: "accent", label: "Accent / half" },
   ],
+  semafor: [
+    { key: "background", label: "Background" },
+    { key: "accent", label: "Stripes" },
+    { key: "score", label: "Score" },
+    { key: "names", label: "Names / scorers" },
+    { key: "timer", label: "Timer" },
+  ],
 };
 
 /** Colour-themed "bar" template: names under the logos, timer and half in the middle. */
@@ -48,6 +55,13 @@ export const SCOREBOARD_TEMPLATES: readonly ScoreboardTemplate[] = [
     name: "Classic",
     layout: "classic",
     colors: { background: null, score: "#ffffff", names: "#ffffff", timer: "#000000", accent: "#ffffff" },
+  },
+  // Red with slowly moving black stripes, everything on a blurred dark panel.
+  {
+    id: "semafor",
+    name: "Semafor",
+    layout: "semafor",
+    colors: { background: "#d41228", score: "#ffffff", names: "#ffffff", timer: "#ffffff", accent: "#000000" },
   },
   bar("dark", "Dark", "#0a0c10", "#aab2cc", "#3d8bff"),
   bar("midnight", "Midnight", "#0f0a1a", "#c4b8e0", "#a855f7"),

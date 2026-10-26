@@ -123,7 +123,7 @@ function TeamCard({
           </Button>
         </div>
 
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3.5 max-[640px]:grid-cols-2">
+        <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr] gap-3.5 max-[640px]:grid-cols-2">
           <Field label="Team name" htmlFor={id("name")}>
             <CommitInput
               ref={nameRef}
@@ -131,6 +131,16 @@ function TeamCard({
               type="text"
               value={team.name}
               onCommit={(v) => v.trim() && save({ name: v.trim() })}
+              className="h-10"
+            />
+          </Field>
+          <Field label="City" htmlFor={id("city")}>
+            <CommitInput
+              id={id("city")}
+              type="text"
+              placeholder="e.g. Đurđevac"
+              value={team.city}
+              onCommit={(v) => save({ city: v.trim() })}
               className="h-10"
             />
           </Field>
