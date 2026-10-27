@@ -11,6 +11,8 @@ import type {
   SceneConfigs,
   SceneType,
   Side,
+  Sponsor,
+  SponsorFields,
   TeamFields,
   TeamProfile,
 } from "../types";
@@ -36,6 +38,7 @@ export interface DataStore {
   readonly match: MatchApi;
   readonly teams: TeamsApi;
   readonly players: PlayersApi;
+  readonly sponsors: SponsorsApi;
   readonly scenes: ScenesApi;
   readonly graphics: GraphicsApi;
   readonly sync: SyncApi;
@@ -104,6 +107,18 @@ export interface PlayersApi {
   /** Returns the new id at once; the write itself may still be pending. */
   create(fields: PlayerFields): string;
   update(id: string, fields: Partial<PlayerFields>): Promise<void>;
+  remove(id: string): Promise<void>;
+}
+
+/** The account's own sponsors (not any team's), for the Sponsors scene. */
+export interface SponsorsApi {
+  /** All sponsors, in list order (see compareSponsors). */
+  subscribe(onChange: (sponsors: Sponsor[]) => void): Unsubscribe;
+  /** Returns the new id at once; the write itself may still be pending. */
+  create(fields?: Partial<SponsorFields>): string;
+  update(id: string, fields: Partial<SponsorFields>): Promise<void>;
+  /** Saves a new list order: each id gets its position in `ids`, in one write. */
+  reorder(ids: string[]): Promise<void>;
   remove(id: string): Promise<void>;
 }
 

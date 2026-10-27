@@ -5,6 +5,7 @@ import { graphicsApi } from "./graphicsRepo";
 import { matchApi } from "./matchRepo";
 import { playersApi } from "./playerRepo";
 import { scenesApi } from "./sceneRepo";
+import { sponsorsApi } from "./sponsorRepo";
 import { teamsApi } from "./teamRepo";
 import { liveMatchRef, logSubscriptionError } from "./workspace";
 
@@ -30,6 +31,7 @@ export const firestoreStore: DataStore = {
   match: matchApi,
   teams: teamsApi,
   players: playersApi,
+  sponsors: sponsorsApi,
   scenes: scenesApi,
   graphics: graphicsApi,
   sync: syncApi,

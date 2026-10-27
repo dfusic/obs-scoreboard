@@ -9,6 +9,7 @@ import {
   type Player,
   type SceneConfigs,
   type Side,
+  type Sponsor,
   type TeamProfile,
 } from "./types";
 
@@ -23,6 +24,8 @@ export interface LiveData {
   /** Players ticked as playing, in presentation order. */
   lineups: Record<Side, Player[]>;
   scenes: SceneConfigs;
+  /** The account's sponsors, in list order (whichever teams are playing). */
+  sponsors: Sponsor[];
   /** Scoreboard template and colours. */
   graphics: GraphicsSettings;
 }
@@ -39,8 +42,8 @@ export function sidesWithPlayers(match: MatchState): Side[] {
 
 /**
  * Subscribes to the live match plus only the data it references: the two selected
- * teams, their players (re-subscribed when the teams change), the scene configs and
- * the graphics (theme and colour scheme).
+ * teams, their players (re-subscribed when the teams change), the scene configs, the
+ * account's sponsors and the graphics (theme and colour scheme).
  * Calls back on every change once the match has loaded.
  */
 export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => void): () => void {
@@ -49,6 +52,7 @@ export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => 
   let graphics = DEFAULT_GRAPHICS;
   const teams: Record<Side, TeamProfile | null> = { home: null, away: null };
   let players: Player[] = [];
+  let sponsors: Sponsor[] = [];
 
   // Teams and players are re-subscribed separately, so toggling away players doesn't blank the logos.
   let teamsKey: string | null = null;
@@ -71,6 +75,7 @@ export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => 
       squads: { home: squad("home"), away: squad("away") },
       lineups: { home: lineup("home"), away: lineup("away") },
       scenes,
+      sponsors,
       graphics,
     });
   };
@@ -122,6 +127,11 @@ export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => 
     emit();
   });
 
+  const unsubSponsors = store.sponsors.subscribe((next) => {
+    sponsors = next;
+    emit();
+  });
+
   const unsubGraphics = store.graphics.subscribe((next) => {
     graphics = next;
     emit();
@@ -130,6 +140,7 @@ export function subscribeToLive(store: DataStore, onChange: (data: LiveData) => 
   return () => {
     unsubMatch();
     unsubScenes();
+    unsubSponsors();
     unsubGraphics();
     teamSubs.forEach((unsub) => unsub());
     playersSub();

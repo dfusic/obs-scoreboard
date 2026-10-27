@@ -13,6 +13,7 @@ const QUICK_TAKES: { scene: SceneType; side?: Side; label: string }[] = [
   { scene: "lineup", side: "away", label: "Lineup away" },
   { scene: "halftime", label: SCENE_LABELS.halftime },
   { scene: "fulltime", label: SCENE_LABELS.fulltime },
+  { scene: "sponsors", label: SCENE_LABELS.sponsors },
 ];
 
 export function ScenePanel() {

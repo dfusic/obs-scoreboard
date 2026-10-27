@@ -17,6 +17,8 @@ export interface ImageKind {
 
 /** Logos and player photos keep transparency (PNG cut-outs); backgrounds are JPEG. */
 export const LOGO_IMAGE: ImageKind = { maxDimension: 600, format: "image/png" };
+/** Sponsor logos: PNG like team logos, larger since one at a time fills half the screen. */
+export const SPONSOR_LOGO_IMAGE: ImageKind = { maxDimension: 800, format: "image/png" };
 export const PHOTO_IMAGE: ImageKind = { maxDimension: 800, format: "image/png" };
 export const BACKGROUND_IMAGE: ImageKind = { maxDimension: 1920, format: "image/jpeg" };
 

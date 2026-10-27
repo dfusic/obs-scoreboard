@@ -1,8 +1,10 @@
 import { COLOR_SCHEMES, colorScheme, sameColors, sceneLayoutId, theme, themeColors, type SchemeColorKey } from "./themes";
+import { secondsPerSponsor } from "./sponsors";
 import { transition } from "./transitions";
 import {
   createInitialMatchState,
   defaultSceneConfigs,
+  NEW_SPONSOR,
   NEW_TEAM,
   SCENE_TYPES,
   type GraphicsSettings,
@@ -13,6 +15,8 @@ import {
   type SceneConfigs,
   type SceneType,
   type Side,
+  type Sponsor,
+  type SponsorFields,
   type TeamFields,
   type TeamProfile,
 } from "./types";
@@ -52,6 +56,16 @@ export function normalizePlayer(id: string, data: Partial<PlayerFields>): Player
   return { id, teamId: data.teamId ?? "", name: data.name ?? "", photo: data.photo ?? null };
 }
 
+export function normalizeSponsor(id: string, data: Partial<SponsorFields>): Sponsor {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : NEW_SPONSOR.name,
+    logo: typeof data.logo === "string" ? data.logo : null,
+    tier: data.tier === "main" ? "main" : "partner",
+    order: typeof data.order === "number" && Number.isFinite(data.order) ? data.order : NEW_SPONSOR.order,
+  };
+}
+
 /**
  * All scene configs, with defaults for any not customised yet. Unknown scene ids are
  * dropped. The layout was stored as `template` before themes.
@@ -64,7 +78,12 @@ export function normalizeScenes(
     if ((SCENE_TYPES as readonly string[]).includes(id)) {
       const type = id as SceneType;
       const { template, ...fields } = data;
-      scenes[type] = { ...scenes[type], ...fields, layout: sceneLayoutId(type, fields.layout ?? template) };
+      scenes[type] = {
+        ...scenes[type],
+        ...fields,
+        layout: sceneLayoutId(type, fields.layout ?? template),
+        secondsPerSponsor: secondsPerSponsor(fields.secondsPerSponsor ?? scenes[type].secondsPerSponsor),
+      };
     }
   }
   return scenes;

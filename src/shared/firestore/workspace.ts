@@ -14,6 +14,8 @@ export const teamsCol = () => collection(db, ...root, "teams");
 export const teamRef = (id: string) => doc(db, ...root, "teams", id);
 export const playersCol = () => collection(db, ...root, "players");
 export const playerRef = (id: string) => doc(db, ...root, "players", id);
+export const sponsorsCol = () => collection(db, ...root, "sponsors");
+export const sponsorRef = (id: string) => doc(db, ...root, "sponsors", id);
 export const scenesCol = () => collection(db, ...root, "scenes");
 export const sceneRef = (type: string) => doc(db, ...root, "scenes", type);
 export const graphicsRef = () => doc(db, ...root, "settings", "graphics");

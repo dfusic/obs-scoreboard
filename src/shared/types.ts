@@ -43,6 +43,26 @@ export interface Player {
 
 export type PlayerFields = Omit<Player, "id">;
 
+/** Main sponsors are shown larger, above the partners. */
+export type SponsorTier = "main" | "partner";
+
+/**
+ * One of the account's own sponsors (never a team's), stored in workspaces/{ws}/sponsors/{id}.
+ * Logo is an inline PNG data URL (see image.ts).
+ */
+export interface Sponsor {
+  id: string;
+  name: string;
+  logo: string | null;
+  tier: SponsorTier;
+  /** Position in the sponsor list (ascending); the Sponsors scene keeps it within each tier. */
+  order: number;
+}
+
+export type SponsorFields = Omit<Sponsor, "id">;
+
+export const NEW_SPONSOR: SponsorFields = { name: "New sponsor", logo: null, tier: "partner", order: 0 };
+
 export const SCENE_TYPES = [
   "scoreboard",
   "welcome",
@@ -52,6 +72,7 @@ export const SCENE_TYPES = [
   "lineup",
   "halftime",
   "fulltime",
+  "sponsors",
 ] as const;
 export type SceneType = (typeof SCENE_TYPES)[number];
 
@@ -64,6 +85,7 @@ export const SCENE_LABELS: Record<SceneType, string> = {
   lineup: "Lineup",
   halftime: "Half time",
   fulltime: "Full time",
+  sponsors: "Sponsors",
 };
 
 /** Per-scene options, stored in workspaces/{ws}/scenes/{sceneType}. */
@@ -84,6 +106,8 @@ export interface SceneConfig {
    * where a scene has one. Stored as `template` before themes were introduced.
    */
   layout: string;
+  /** Sponsors only: how long each sponsor stays up in the "One at a time" layout. */
+  secondsPerSponsor: number;
 }
 
 /** What the output page shows; only a take changes it (see program.ts). */
@@ -145,14 +169,15 @@ export function defaultSceneConfigs(): SceneConfigs {
 }
 
 export const DEFAULT_SCENE_CONFIGS: SceneConfigs = {
-  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, layout: "standard" },
-  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard" },
-  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, layout: "standard" },
-  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, logo: null, layout: "standard" },
-  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, layout: "standard" },
-  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, layout: "standard" },
-  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard" },
-  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard" },
+  scoreboard: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  welcome: { title: "Welcome", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  presentation: { title: "", subtitle: "", accentColor: "#ffffff", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  goal: { title: "Goal!", subtitle: "", accentColor: "#e83a3a", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  playerCard: { title: "", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  lineup: { title: "Starting lineup", subtitle: "", accentColor: "#3d8bff", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  halftime: { title: "Half time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  fulltime: { title: "Full time", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "standard", secondsPerSponsor: 6 },
+  sponsors: { title: "Sponsors", subtitle: "", accentColor: "#e8c547", background: null, logo: null, layout: "grid", secondsPerSponsor: 6 },
 };
 
 /**

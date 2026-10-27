@@ -1,10 +1,12 @@
 import { useLiveData, useStore } from "@shared/react/store";
+import { MAX_SECONDS_PER_SPONSOR, MIN_SECONDS_PER_SPONSOR, secondsPerSponsor } from "@shared/sponsors";
 import { SCENE_LAYOUTS } from "@shared/themes";
 import { SCENE_LABELS, type SceneConfig, type SceneType } from "@shared/types";
 import { BACKGROUND_IMAGE, LOGO_IMAGE } from "../images";
 import { PickerOption, ScopeTag, VIDEO_THUMB_BG } from "./ThemePanels";
 import {
   Button,
+  cn,
   CommitInput,
   ErrorText,
   Field,
@@ -72,6 +74,29 @@ export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highl
               />
             </Field>
           </div>
+        )}
+
+        {type === "sponsors" && config.layout === "single" && (
+          <Field label="Seconds per sponsor" htmlFor="scene-seconds">
+            <CommitInput
+              key={type}
+              id="scene-seconds"
+              type="number"
+              min={MIN_SECONDS_PER_SPONSOR}
+              max={MAX_SECONDS_PER_SPONSOR}
+              step={1}
+              value={String(config.secondsPerSponsor)}
+              onCommit={(v) => save({ secondsPerSponsor: secondsPerSponsor(Number(v)) })}
+              className="w-28"
+            />
+          </Field>
+        )}
+        {type === "sponsors" && (
+          <Hint>
+            {config.layout === "single"
+              ? "One sponsor logo at a time, main sponsors first, starting over each time the scene is taken. The title isn't shown."
+              : "All sponsor logos at once with the title on top (leave it empty for none). Manage the logos on the Sponsors page."}
+          </Hint>
         )}
 
         <Field label={type === "scoreboard" ? "Image" : "Background"}>
@@ -155,9 +180,45 @@ export function CompetitionPanel() {
   );
 }
 
+/** Sponsors layouts: a grid of logo boxes under the title, or one large logo. */
+function SponsorLayoutThumb({ single, title, highlight }: { single: boolean; title: string; highlight: string }) {
+  const box = "rounded-[2px] bg-white/25";
+  if (single) {
+    return (
+      <div className="flex size-full items-center justify-center" style={{ background: VIDEO_THUMB_BG }}>
+        <span className="h-3/5 w-2/5 rounded-sm bg-white/30" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex size-full items-center justify-center p-2" style={{ background: VIDEO_THUMB_BG }}>
+      <div
+        className="flex size-full flex-col gap-1 rounded-sm border-t-2 bg-[#0a0c10]/90 px-2 py-1.5"
+        style={{ borderColor: highlight }}
+      >
+        {title && (
+          <span className="truncate font-condensed text-[11px] leading-none font-black uppercase" style={{ color: highlight }}>
+            {title}
+          </span>
+        )}
+        <div className="flex flex-1 justify-center gap-1.5">
+          <span className={cn(box, "w-1/3")} />
+          <span className={cn(box, "w-1/3")} />
+        </div>
+        <div className="grid flex-1 grid-cols-4 gap-1">
+          {Array.from({ length: 8 }, (_, i) => (
+            <span key={i} className={cn(box, "bg-white/15")} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** A miniature of a scene layout, in the colour scheme's highlight. */
 function SceneLayoutThumb({ id, title, highlight }: { id: string; title: string; highlight: string }) {
   const label = title || "Welcome";
+  if (id === "grid" || id === "single") return <SponsorLayoutThumb single={id === "single"} title={title} highlight={highlight} />;
   if (id === "largeText") {
     return (
       <div className="flex size-full items-center overflow-hidden" style={{ background: VIDEO_THUMB_BG }}>

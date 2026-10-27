@@ -1,10 +1,12 @@
 import { formatClock } from "@shared/clock";
 import { matchPlayers, type LiveData } from "@shared/liveFeed";
 import { goalMinute } from "@shared/program";
+import { gridColumns, sponsorsByTier, sponsorSlide } from "@shared/sponsors";
 import { theme } from "@shared/themes";
+import { FPS } from "@shared/transitions";
 import { useTicking } from "@shared/react/hooks";
-import type { ClockState, Player, SceneConfig, SceneType, SchemeColors, Side, TeamProfile } from "@shared/types";
-import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import type { ClockState, Player, SceneConfig, SceneType, SchemeColors, Side, Sponsor, TeamProfile } from "@shared/types";
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 /** What a scene is about, after applying any preview override. */
 export interface SceneTarget {
@@ -446,6 +448,109 @@ function ResultScene({ data, config }: SceneProps) {
   );
 }
 
+/**
+ * Width / height of the grid's logo areas on the 2304x1024 canvas (the card's inside
+ * below the title): the main sponsors' row and the partners' rows, or one of them alone.
+ */
+const SPONSOR_AREA_RATIO = { main: 6.8, partners: 5.6, mainMany: 9.6, partnersMany: 4.5, alone: 3.1 };
+
+/** From this many partners, the partners' rows get more of the height (.sp-many). */
+const MANY_PARTNERS = 9;
+
+function SponsorRow({ sponsors, className, areaRatio }: { sponsors: Sponsor[]; className: string; areaRatio: number }) {
+  const cols = gridColumns(sponsors.length, areaRatio);
+  const style = { "--cols": cols, "--rows": Math.ceil(sponsors.length / cols) } as CSSProperties;
+  return (
+    <div className={`sp-row ${className}`} style={style}>
+      {sponsors.map((s) => (
+        <div key={s.id} className="sp-box">
+          <img src={s.logo ?? undefined} alt="" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Grid: every sponsor's logo at once (images only, no names), main sponsors larger on top,
+ * partners in rows below. Logos shrink to fit.
+ */
+function SponsorGrid({ data, config }: SceneProps) {
+  const { main, partners } = sponsorsByTier(data.sponsors);
+  const both = main.length > 0 && partners.length > 0;
+  const many = partners.length >= MANY_PARTNERS;
+  const ratio = (shared: number, sharedMany: number) =>
+    !both ? SPONSOR_AREA_RATIO.alone : many ? sharedMany : shared;
+  return (
+    <div className="card sponsors">
+      <Header config={config} />
+      <div className={many ? "sp-grid sp-many" : "sp-grid"}>
+        {main.length > 0 && (
+          <SponsorRow
+            sponsors={main}
+            className="sp-main"
+            areaRatio={ratio(SPONSOR_AREA_RATIO.main, SPONSOR_AREA_RATIO.mainMany)}
+          />
+        )}
+        {partners.length > 0 && (
+          <SponsorRow
+            sponsors={partners}
+            className="sp-partners"
+            areaRatio={ratio(SPONSOR_AREA_RATIO.partners, SPONSOR_AREA_RATIO.partnersMany)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One at a time: one large logo (images only, no names), rotating through main sponsors then
+ * partners. Which one is up comes from the take time (sponsorSlide), so every output
+ * window agrees and a reload doesn't restart it. React renders only when the sponsor
+ * changes; the fade writes opacity directly, on animation frames only while fading.
+ */
+function SponsorRotation({ data, config }: SceneProps) {
+  const { main, partners } = sponsorsByTier(data.sponsors);
+  const list = [...main, ...partners];
+  const count = list.length;
+  // Timed from the latest Sponsors take only: the next take (another scene) writes a new
+  // startedAtMs, which would restart the rotation on the first sponsor while it fades out.
+  const { program } = data.match;
+  const [startedAtMs, setStartedAtMs] = useState(program.startedAtMs);
+  if (program.scene === "sponsors" && program.startedAtMs !== startedAtMs) setStartedAtMs(program.startedAtMs);
+  const seconds = config.secondsPerSponsor;
+  const slideRef = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let frame = 0;
+    const tick = () => {
+      const slide = sponsorSlide(count, startedAtMs, Date.now(), seconds);
+      setIndex(slide.index);
+      if (slideRef.current) slideRef.current.style.opacity = String(slide.opacity);
+      if (slide.nextChangeMs === Infinity) return;
+      if (slide.nextChangeMs <= 1000 / FPS) frame = requestAnimationFrame(tick);
+      else timer = setTimeout(tick, slide.nextChangeMs);
+    };
+    tick();
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(frame);
+    };
+  }, [count, startedAtMs, seconds]);
+
+  const sponsor = count ? list[index % count] : null;
+  return (
+    <div className="card sponsors-single">
+      <div ref={slideRef} className="sp-slide">
+        {sponsor?.logo && <img className="sp-slide-logo" src={sponsor.logo} alt="" />}
+      </div>
+    </div>
+  );
+}
+
 export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
   scoreboard: ScoreboardScene,
 
@@ -510,4 +615,7 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
 
   halftime: ResultScene,
   fulltime: ResultScene,
+
+  // The account's own sponsors: no team crest or colours.
+  sponsors: (props) => (props.config.layout === "single" ? <SponsorRotation {...props} /> : <SponsorGrid {...props} />),
 };
