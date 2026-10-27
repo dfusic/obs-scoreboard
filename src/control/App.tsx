@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type Reac
 import { GraphicsPage } from "./graphics/GraphicsPage";
 import { LivePage } from "./live/LivePage";
 import { overlayUrl } from "./OutputPreview";
+import { SponsorsPage } from "./sponsors/SponsorsPage";
 import { TeamsPage } from "./teams/TeamsPage";
 import { TeamsProvider } from "./teamsContext";
 import { Button, cn, ErrorText, Field, Panel, PanelBody, PanelTitle } from "./ui";
@@ -84,7 +85,7 @@ function Login() {
   );
 }
 
-type Page = "live" | "teams" | "graphics";
+type Page = "live" | "teams" | "sponsors" | "graphics";
 
 const icon = (children: ReactNode) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -117,6 +118,16 @@ const PAGES: { id: Page; label: string; icon: ReactNode }[] = [
     ),
   },
   {
+    id: "sponsors",
+    label: "Sponsors",
+    icon: icon(
+      <>
+        <circle cx="12" cy="8" r="6" />
+        <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+      </>,
+    ),
+  },
+  {
     id: "graphics",
     label: "Graphics",
     icon: icon(
@@ -138,7 +149,7 @@ const LogoutIcon = () =>
     </>,
   );
 
-/** Hash router (#/live, #/teams, #/graphics; the old #/setup opens Teams). All pages stay mounted. */
+/** Hash router (#/live, #/teams, #/sponsors, #/graphics; the old #/setup opens Teams). All pages stay mounted. */
 function useHashPage(): Page {
   const read = (): Page => {
     const hash = location.hash.replace(/^#\/?/, "");
@@ -175,6 +186,7 @@ function Dashboard({ user }: { user: AppUser }) {
           <TeamsProvider>
             <LivePage hidden={page !== "live"} />
             <TeamsPage hidden={page !== "teams"} />
+            <SponsorsPage hidden={page !== "sponsors"} />
             <GraphicsPage hidden={page !== "graphics"} previewEnabled={graphicsOpened} />
           </TeamsProvider>
         </LiveDataProvider>

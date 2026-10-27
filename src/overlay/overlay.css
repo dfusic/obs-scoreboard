@@ -748,6 +748,93 @@ body[data-theme="semafor"] .intro-default-bg {
   color: var(--accent);
 }
 
+/* ---------- sponsors ----------
+   The account's own sponsors (no team colours). Grid: main sponsors' row over the
+   partners' rows, each logo contained in an equal box so wide and tall logos balance;
+   SponsorRow sets --cols / --rows from the count (gridColumns). One at a time: one
+   large logo, faded by SponsorRotation. Images only: sponsor names are never shown. */
+
+.sp-grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4vw;
+  margin-top: 1.2vw;
+}
+
+.sp-row {
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+}
+
+/* With many partners (SponsorGrid sets .sp-many), they get more of the height. */
+.sp-main {
+  flex: 45 1 0;
+}
+
+.sp-partners {
+  flex: 55 1 0;
+}
+
+.sp-many .sp-main {
+  flex-grow: 32;
+}
+
+.sp-many .sp-partners {
+  flex-grow: 68;
+}
+
+.sp-main + .sp-partners {
+  border-top: 0.15vw solid rgba(255, 255, 255, 0.18);
+  padding-top: 1.4vw;
+}
+
+.sp-box {
+  width: calc(100% / var(--cols, 1));
+  height: calc(100% / var(--rows, 1));
+  box-sizing: border-box;
+  padding: 0.5vw 1.4vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sponsors-single {
+  justify-content: center;
+}
+
+.sp-slide {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+/* One large logo; images only, no names. */
+.sp-slide-logo {
+  height: 60vh;
+  max-width: 80%;
+  object-fit: contain;
+}
+
+/* Classic shows one sponsor straight over the background, like its goal marquee. */
+body[data-theme="classic"] .sponsors-single {
+  background: none;
+  border: 0;
+}
+
 /* ---------- player intro ----------
    Measured from the design frame (16:9): band 7-31% of the height, crest top-left
    over the band, first name over a larger surname, PNG cut-out standing on the

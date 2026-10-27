@@ -168,6 +168,12 @@ export const SCENE_LAYOUTS: Partial<Record<SceneType, readonly { id: string; nam
     // Title and subtitle scrolling right to left across the whole screen, on repeat.
     { id: "largeText", name: "Large text" },
   ],
+  sponsors: [
+    // Every sponsor at once: main sponsors larger on top, partners in rows below.
+    { id: "grid", name: "Grid" },
+    // One large logo and name at a time, rotating (see sponsorSlide in sponsors.ts).
+    { id: "single", name: "One at a time" },
+  ],
 };
 
 /** A valid layout id for the scene: the given one if it exists, else the scene's default. */
