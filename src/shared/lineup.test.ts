@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moveInLineup, resolveLineup, stepLineup, toggleInLineup } from "./lineup";
+import { moveInLineup, resolveLineup, stepIntro, toggleInLineup } from "./lineup";
 import type { Player } from "./types";
 
 const player = (id: string): Player => ({ id, teamId: "t", name: id.toUpperCase(), photo: null });
@@ -30,22 +30,26 @@ describe("moveInLineup", () => {
   });
 });
 
-describe("stepLineup", () => {
+describe("stepIntro", () => {
   const ids = ["a", "b", "c"];
 
+  it("goes from the club logo to the first player and back", () => {
+    expect(stepIntro(ids, null, 1)).toBe("a");
+    expect(stepIntro(ids, "a", -1)).toBeNull();
+  });
+
   it("steps to the next and previous player", () => {
-    expect(stepLineup(ids, "a", 1)).toBe("b");
-    expect(stepLineup(ids, "c", -1)).toBe("b");
+    expect(stepIntro(ids, "a", 1)).toBe("b");
+    expect(stepIntro(ids, "c", -1)).toBe("b");
   });
 
   it("stops at either end", () => {
-    expect(stepLineup(ids, "c", 1)).toBe("c");
-    expect(stepLineup(ids, "a", -1)).toBe("a");
+    expect(stepIntro(ids, "c", 1)).toBe("c");
+    expect(stepIntro(ids, null, -1)).toBeNull();
   });
 
-  it("starts from the first player when there is no current one", () => {
-    expect(stepLineup(ids, null, 1)).toBe("a");
-    expect(stepLineup(ids, "removed", 1)).toBe("a");
-    expect(stepLineup([], null, 1)).toBeNull();
+  it("treats a player no longer in the lineup as the logo, and an empty lineup as logo only", () => {
+    expect(stepIntro(ids, "removed", 1)).toBe("a");
+    expect(stepIntro([], null, 1)).toBeNull();
   });
 });

@@ -26,12 +26,13 @@ export function moveInLineup(ids: string[], from: number, to: number): string[] 
 }
 
 /**
- * The player `delta` steps from `currentId` (previous = -1, next = +1), stopping at
- * either end. Starts from the first player when `currentId` isn't in the lineup.
+ * Player intro: the step `delta` away from `currentId` (previous = -1, next = +1). The
+ * intro opens on the club logo (null), before the first player; it stops at either end.
+ * A player no longer in the lineup counts as the logo.
  */
-export function stepLineup(ids: string[], currentId: string | null, delta: number): string | null {
-  if (ids.length === 0) return null;
-  const index = currentId === null ? -1 : ids.indexOf(currentId);
-  if (index === -1) return ids[0];
-  return ids[Math.max(0, Math.min(ids.length - 1, index + delta))];
+export function stepIntro(ids: string[], currentId: string | null, delta: number): string | null {
+  // Position 0 is the logo, 1..n the players.
+  const index = currentId === null ? 0 : ids.indexOf(currentId) + 1;
+  const next = Math.max(0, Math.min(ids.length, index + delta));
+  return next === 0 ? null : ids[next - 1];
 }

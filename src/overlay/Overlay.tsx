@@ -2,7 +2,7 @@ import { matchPlayers, type LiveData } from "@shared/liveFeed";
 import { normalizeGraphics } from "@shared/normalize";
 import { useLiveData } from "@shared/react/store";
 import { SCENE_TYPES, type GraphicsSettings, type SceneType } from "@shared/types";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SCENES, SemaforStripes, type SceneTarget } from "./scenes";
 import { TransitionCurtain, useSceneTransition } from "./Transition";
 
@@ -71,6 +71,10 @@ export function Overlay() {
   const previewScene = usePreviewScene();
   const scene = previewScene ?? data.match.program.scene;
   const target = sceneTarget(data, previewScene !== null);
+  // Each scene keeps the target it had when it last went on air, so a scene leaving keeps
+  // showing who it was about (e.g. the intro's player while the next player's card comes in).
+  const targets = useRef<Partial<Record<SceneType, SceneTarget>>>({});
+  targets.current[scene] = target;
 
   const { role, shown, running } = useSceneTransition(scene, data.graphics.transition, usePreviewReplay());
 
@@ -98,7 +102,7 @@ export function Overlay() {
         const Scene = SCENES[type];
         return (
           <section key={type} className="scene" data-layer={type} data-tr={role(type)} style={accent}>
-            <Scene data={data} config={data.scenes[type]} target={target} />
+            <Scene data={data} config={data.scenes[type]} target={targets.current[type] ?? target} />
           </section>
         );
       })}

@@ -603,45 +603,7 @@ body[data-theme="semafor"] .intro-default-bg {
   color: var(--accent);
 }
 
-/* player card */
-
-.feature {
-  flex-direction: row;
-  gap: 3vw;
-  align-items: stretch;
-}
-
-.feature-media {
-  flex: 0 0 26%;
-  border-radius: 1vw;
-  overflow: hidden;
-  background: linear-gradient(160deg, var(--team-primary), rgba(0, 0, 0, 0.6));
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.feature-photo {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.feature-logo {
-  object-fit: contain;
-  width: 70%;
-  height: 70%;
-  margin: auto;
-}
-
-.feature-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.8vw;
-}
+/* team name next to the lineup crest */
 
 .feature-name {
   font-size: 5vw;
@@ -650,13 +612,6 @@ body[data-theme="semafor"] .intro-default-bg {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.feature-meta {
-  font-weight: 600;
-  font-size: 2.2vw;
-  color: #c9cede;
-  text-transform: uppercase;
 }
 
 .score-line-sep {
@@ -914,6 +869,26 @@ body[data-theme="classic"] .sponsors-single {
   object-fit: contain;
   object-position: bottom right;
   animation: intro-photo-in 0.6s ease-out both;
+}
+
+/* The intro's opening screen, before the first player: the club's crest, large. */
+.intro-club-logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 64vh;
+  width: 64vh;
+  max-width: 80%;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  animation: intro-logo-in 0.6s ease-out both;
+}
+
+@keyframes intro-logo-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
 }
 
 @keyframes intro-text-in {

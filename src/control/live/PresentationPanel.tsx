@@ -1,57 +1,52 @@
-import { stepLineup } from "@shared/lineup";
-import { matchPlayers, sidesWithPlayers, type LiveData } from "@shared/liveFeed";
+import { stepIntro } from "@shared/lineup";
+import { matchPlayers, type LiveData } from "@shared/liveFeed";
 import { takeScene } from "@shared/program";
 import { useLiveData, useStore } from "@shared/react/store";
-import type { ProgramState, Side } from "@shared/types";
-import { useEffect, useRef, useState } from "react";
-import { Button, Field, Hint, Panel, PanelBody, PanelTitle, Row, Spacer } from "../ui";
+import type { ProgramState } from "@shared/types";
+import { useEffect, useRef } from "react";
+import { Button, Hint, Panel, PanelBody, PanelTitle } from "../ui";
 
 const sceneButton = "h-14 text-[15px]";
 
 /**
- * Player intro: steps through the lineup one player at a time, timed by the operator
- * to the commentary (buttons, arrow keys or a presenter clicker).
+ * Player intro: shown only while the intro is on air (taken from the Scenes panel, where
+ * it opens on the club logo). Steps logo → first player → … → last, timed by the operator
+ * to the commentary (buttons, arrow keys or a presenter clicker); Prev from the first
+ * player goes back to the logo.
  */
 export function PresentationPanel({ active }: { active: boolean }) {
   const store = useStore();
   const data = useLiveData();
-  const [chosenSide, setChosenSide] = useState<Side>("home");
-  const sides = sidesWithPlayers(data.match);
-  const side = sides.includes(chosenSide) ? chosenSide : "home";
-  const players = matchPlayers(data, side);
 
   /** Last take from this panel, used until the snapshot catches up (fast double presses). */
   const lastTake = useRef<ProgramState | null>(null);
-
-  /** The intro's current player, if the intro is what's on air for this side. */
-  const currentPlayerId = (live: LiveData): string | null => {
-    let program = live.match.program;
-    if (lastTake.current && lastTake.current.startedAtMs > program.startedAtMs) program = lastTake.current;
-    return program.scene === "presentation" && program.side === side ? program.playerId : null;
+  const program = (live: LiveData): ProgramState => {
+    const current = live.match.program;
+    return lastTake.current && lastTake.current.startedAtMs > current.startedAtMs ? lastTake.current : current;
   };
-  const currentId = currentPlayerId(data);
-  const index = currentId ? players.findIndex((p) => p.id === currentId) : -1;
 
-  const take = (playerId: string) => {
-    lastTake.current = takeScene("presentation", Date.now(), { side, playerId });
+  const onAir = program(data);
+  const isOnAir = onAir.scene === "presentation";
+  const side = onAir.side ?? "home";
+  const players = matchPlayers(data, side);
+  const index = onAir.playerId ? players.findIndex((p) => p.id === onAir.playerId) : -1;
+
+  /** Shows the previous (-1) / next (+1) step; the club logo comes before the first player. */
+  const step = (delta: number) => {
+    const current = program(data);
+    if (current.scene !== "presentation") return;
+    const ids = matchPlayers(data, current.side ?? "home").map((p) => p.id);
+    const playerId = stepIntro(ids, current.playerId, delta);
+    if (playerId === current.playerId) return;
+    lastTake.current = takeScene("presentation", Date.now(), { side: current.side, playerId });
     void store.match.setProgram(lastTake.current);
   };
 
-  /** Shows the previous (-1) / next (+1) lineup player; starts at the first when the intro isn't on air. */
-  const step = (delta: number) => {
-    const playerId = stepLineup(
-      players.map((p) => p.id),
-      currentPlayerId(data),
-      delta,
-    );
-    if (playerId) take(playerId);
-  };
-
-  // Keyboard / presenter clicker, while the Live page is showing.
+  // Keyboard / presenter clicker, while the Live page is showing and the intro is on air.
   const stepRef = useRef(step);
   stepRef.current = step;
   useEffect(() => {
-    if (!active) return;
+    if (!active || !isOnAir) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
       if ((e.target as HTMLElement).closest("input, select, textarea, [contenteditable]")) return;
@@ -62,34 +57,29 @@ export function PresentationPanel({ active }: { active: boolean }) {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [active]);
+  }, [active, isOnAir]);
+
+  if (!isOnAir) return null;
+  const team = data.teams[side];
 
   return (
-    <Panel>
-      <PanelTitle>Player intro</PanelTitle>
+    <Panel className="border-danger">
+      <PanelTitle>Player intro · {team?.name ?? (side === "home" ? "Home" : "Away")}</PanelTitle>
       <PanelBody>
-        {sides.length > 1 && (
-          <Field label="Team" htmlFor="intro-side">
-            <select id="intro-side" value={side} onChange={(e) => setChosenSide(e.target.value as Side)}>
-              <option value="home">Home</option>
-              <option value="away">Away</option>
-            </select>
-          </Field>
-        )}
         <div className="flex min-h-7 items-baseline gap-2.5">
           <span className="font-condensed text-[22px] font-bold whitespace-nowrap text-accent tabular-nums">
-            {index >= 0 ? `${index + 1} / ${players.length}` : "—"}
+            {index >= 0 ? `${index + 1} / ${players.length}` : "Logo"}
           </span>
           <span className="truncate text-[15px]">
             {index >= 0
               ? players[index].name
               : players.length
-                ? `Not on air · ${players.length} players`
-                : "No players. Pick the lineup first."}
+                ? `Club logo · ${players.length} players next`
+                : "Club logo · no players. Pick the lineup first."}
           </span>
         </div>
         <div className="grid grid-cols-[1fr_1.4fr] gap-2">
-          <Button variant="scene" className={sceneButton} disabled={index <= 0} onClick={() => step(-1)}>
+          <Button variant="scene" className={sceneButton} disabled={index < 0} onClick={() => step(-1)}>
             ◀ Prev
           </Button>
           <Button
@@ -98,25 +88,10 @@ export function PresentationPanel({ active }: { active: boolean }) {
             disabled={players.length === 0 || index === players.length - 1}
             onClick={() => step(1)}
           >
-            {index >= 0 ? "Next ▶" : "Start ▶"}
+            Next ▶
           </Button>
         </div>
-        <Row>
-          <Button variant="ghost" onClick={() => players[0] && take(players[0].id)}>
-            Start from first
-          </Button>
-          <Spacer />
-          <Button
-            variant="ghost"
-            onClick={() => {
-              lastTake.current = null;
-              void store.match.setProgram(takeScene("scoreboard", Date.now()));
-            }}
-          >
-            Back to scoreboard
-          </Button>
-        </Row>
-        <Hint>Keys: ← / → (or a presenter clicker) while the Live page is open.</Hint>
+        <Hint>Keys: ← / → (or a presenter clicker) while the Live page is open. Prev from the first player shows the club logo.</Hint>
       </PanelBody>
     </Panel>
   );

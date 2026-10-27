@@ -20,8 +20,11 @@ import {
   useImageUpload,
 } from "../ui";
 
-/** The scoreboard and player intro have fixed designs; only their background is configurable here. */
-const hasTextOptions = (type: SceneType) => type !== "scoreboard" && type !== "presentation";
+/**
+ * The scoreboard and the player intro design (also the player card) are fixed; only their
+ * background is configurable here.
+ */
+const hasTextOptions = (type: SceneType) => type !== "scoreboard" && type !== "presentation" && type !== "playerCard";
 
 /**
  * One scene's own options (its colours come from the global colour scheme). They save as
