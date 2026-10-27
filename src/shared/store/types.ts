@@ -21,7 +21,7 @@ import type {
  *
  * - `firestore` (today): Firebase Auth + Firestore with a persistent local cache, so pages
  *   keep working through network drops and queued writes sync on reconnect.
- * - `local` (planned): fully offline at the venue. Control and the OBS overlay run on one
+ * - `local` (planned): fully offline at the venue. Control and the output page run on one
  *   machine and sync through a local hub instead of the cloud.
  *
  * Keep operations domain-level ("record a goal"), not storage-level ("update this path"),

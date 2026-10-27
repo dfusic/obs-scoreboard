@@ -23,7 +23,7 @@ Find others the same way (anything the overlay reads that the control page write
 
 The overlay renders whatever it reads from Firestore, so deferring a change needs a mechanism. Before building one, write down the options and the trade-offs, and pick the one that fits the rules below. Things to weigh:
 - **When does saved become on air?** On the next take of that scene, including the automatic return to the scoreboard after a timed scene (that happens locally in `activeScene()`, with no write).
-- **Consistency:** several overlays (OBS, vMix, a monitor) and an overlay reload must show the same thing. A purely local "keep what was showing" in the overlay breaks on reload; recording what's applied at take time (e.g. on `program`) doesn't.
+- **Consistency:** several output windows (a projector, a second monitor, a preview) and an overlay reload must show the same thing. A purely local "keep what was showing" in the overlay breaks on reload; recording what's applied at take time (e.g. on `program`) doesn't.
 - **Offline and data rules:** domain-level store operations, no transactions or server reads in write paths, writes fired with `void`, new fields with defaults in `types.ts` and `normalize.ts`, match fields via `updateMatch()` with dotted paths, no images on the match doc, deploy rules before shipping code that reads new paths.
 - Keep the derivation pure (like `program.ts` / `clock.ts`, taking `nowMs`) and add tests.
 - Update `.claude/CLAUDE.md` when the flow changes, since other agents rely on it.

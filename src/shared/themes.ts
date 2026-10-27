@@ -165,7 +165,7 @@ export function sameGraphics(a: GraphicsSettings, b: GraphicsSettings): boolean 
 export const SCENE_LAYOUTS: Partial<Record<SceneType, readonly { id: string; name: string }[]>> = {
   welcome: [
     { id: "standard", name: "Card" },
-    // Title and subtitle scrolling left to right across the whole screen, on repeat.
+    // Title and subtitle scrolling right to left across the whole screen, on repeat.
     { id: "largeText", name: "Large text" },
   ],
 };

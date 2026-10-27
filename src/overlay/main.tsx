@@ -1,6 +1,7 @@
 import { createStore } from "@shared/store";
 import { LiveDataProvider, StoreProvider } from "@shared/react/store";
 import { createRoot } from "react-dom/client";
+import { setUpDisplay } from "./display";
 import { Overlay } from "./Overlay";
 
 createRoot(document.getElementById("root")!).render(
@@ -11,12 +12,6 @@ createRoot(document.getElementById("root")!).render(
   </StoreProvider>,
 );
 
-// Double-click toggles fullscreen, for the overlay opened as a window on a second screen.
-document.addEventListener("dblclick", () => {
-  if (document.fullscreenElement) void document.exitFullscreen();
-  else void document.documentElement.requestFullscreen().catch(() => {});
-});
-
 // Half-speed background loop. Set after metadata loads so it survives loop restarts.
 const bgVideo = document.querySelector<HTMLVideoElement>(".bg-video")!;
 const BG_PLAYBACK_RATE = 0.5;
@@ -25,3 +20,6 @@ bgVideo.playbackRate = BG_PLAYBACK_RATE;
 bgVideo.addEventListener("loadedmetadata", () => {
   bgVideo.playbackRate = BG_PLAYBACK_RATE;
 });
+
+// Fullscreen on the projector / second screen, and no display sleep.
+setUpDisplay(bgVideo);

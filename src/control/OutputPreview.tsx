@@ -6,7 +6,7 @@ import { cn } from "./ui";
 const CANVAS_WIDTH = 2304;
 const CANVAS_HEIGHT = 1024;
 
-/** The output page's address, next to this one in every environment (for the Browser Source). */
+/** The output page's address, next to this one in every environment (opened on the projector / second screen). */
 export const overlayUrl = () => new URL("../overlay/overlay.html", location.href).href;
 
 /**
