@@ -67,28 +67,6 @@ function Scorers({ data, side }: { data: LiveData; side: Side }) {
   );
 }
 
-/** Big photo (or the team logo when there is none) next to the player's details. */
-function PlayerFeature({ data, config, target }: SceneProps) {
-  const team = data.teams[target.side];
-  const { player } = target;
-  return (
-    <div className="card feature" style={teamVars(team)}>
-      <div className="feature-media">
-        {player?.photo ? (
-          <img className="feature-photo" src={player.photo} alt="" />
-        ) : (
-          <Logo team={team} className="feature-photo feature-logo" />
-        )}
-      </div>
-      <div className="feature-text">
-        <Header config={config} />
-        <div className="feature-name">{player?.name || teamName(team, target.side)}</div>
-        {player && <div className="feature-meta">{teamName(team, target.side)}</div>}
-      </div>
-    </div>
-  );
-}
-
 /** "Adrijan Coha" -> ["Adrijan", "Coha"]: surname on its own, larger line. */
 export function splitName(name: string): [string, string] {
   const parts = name.trim().split(/\s+/);
@@ -123,25 +101,30 @@ function IntroName({ name }: { name: string }) {
 }
 
 /**
- * Player intro: one lineup player at a time, stepped manually from the Live page.
- * Design: team-colour band with the crest, first name over a larger surname, and the
- * player's PNG cut-out standing on the bottom edge. Long names are shrunk to fit.
- * Keyed by player so the entry animations replay for each new player.
+ * Player intro, also used by the player card: one player at a time, stepped manually
+ * from the Live page. Design: team-colour band with the crest, first name over a larger
+ * surname, and the player's PNG cut-out standing on the bottom edge. Long names are
+ * shrunk to fit. Without a player (the intro's opening screen) it shows the club's crest
+ * large. Keyed by player so the entry animations replay for each new player.
  */
-function PresentationScene({ data, config, target }: SceneProps) {
+function PlayerIntro({ data, config, target }: SceneProps) {
   const team = data.teams[target.side];
   const { player } = target;
   // A custom background image (Graphics page) replaces the built-in striped one.
+  const className = config.background ? "intro" : "intro intro-default-bg";
+  if (!player) {
+    return (
+      <div key="" className={className} style={teamVars(team)}>
+        <Logo team={team} className="intro-club-logo" />
+      </div>
+    );
+  }
   return (
-    <div
-      key={player?.id ?? ""}
-      className={config.background ? "intro" : "intro intro-default-bg"}
-      style={teamVars(team)}
-    >
+    <div key={player.id} className={className} style={teamVars(team)}>
       <div className="intro-band" />
       {team?.logo && <img className="intro-crest" src={team.logo} alt="" />}
-      <IntroName name={player?.name ?? ""} />
-      {player?.photo && <img className="intro-photo" src={player.photo} alt="" />}
+      <IntroName name={player.name} />
+      {player.photo && <img className="intro-photo" src={player.photo} alt="" />}
     </div>
   );
 }
@@ -568,7 +551,7 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
       </div>
     ),
 
-  presentation: PresentationScene,
+  presentation: PlayerIntro,
 
   // Taken by hand the moment the ball goes in, before the score is updated: not about one
   // team or player, so the score updates live on air while the operator records the goal.
@@ -591,7 +574,8 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
       </div>
     ),
 
-  playerCard: (props) => <PlayerFeature {...props} />,
+  // The same design as the intro, for the player taken (e.g. the latest scorer).
+  playerCard: PlayerIntro,
 
   lineup: ({ data, config, target }) => {
     const team = data.teams[target.side];

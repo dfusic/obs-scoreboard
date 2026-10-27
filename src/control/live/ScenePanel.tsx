@@ -5,10 +5,13 @@ import { SCENE_LABELS, SIDES, type SceneType, type Side } from "@shared/types";
 import { useEffect, useState } from "react";
 import { Button, cn, Field, ON_AIR, Panel, PanelBody, PanelTitle } from "../ui";
 
-/** One-click scenes (lineup is per side). GOAL! and the player card have their own controls. */
+/** One-click scenes (player intro and lineup are per side; away only with away players). GOAL! and the player card have their own controls. */
 const QUICK_TAKES: { scene: SceneType; side?: Side; label: string }[] = [
   { scene: "scoreboard", label: SCENE_LABELS.scoreboard },
   { scene: "welcome", label: SCENE_LABELS.welcome },
+  // Opens on the club logo; the Player intro panel then steps through the lineup.
+  { scene: "presentation", side: "home", label: SCENE_LABELS.presentation },
+  { scene: "presentation", side: "away", label: "Player intro away" },
   { scene: "lineup", side: "home", label: "Lineup" },
   { scene: "lineup", side: "away", label: "Lineup away" },
   { scene: "halftime", label: SCENE_LABELS.halftime },
@@ -56,7 +59,7 @@ export function ScenePanel() {
         </Button>
         <div className="grid grid-cols-2 gap-2">
           {QUICK_TAKES.map((t) =>
-            t.scene === "lineup" && t.side && !sides.includes(t.side) ? null : (
+            t.side && !sides.includes(t.side) ? null : (
               <Button
                 key={t.label}
                 variant="scene"
