@@ -4,13 +4,13 @@ import { takeScene } from "@shared/program";
 import { useLiveData, useStore } from "@shared/react/store";
 import type { ProgramState } from "@shared/types";
 import { useEffect, useRef } from "react";
-import { Button, Hint, Panel, PanelBody, PanelTitle } from "../ui";
+import { Button, cn, Hint, Panel, PanelBody, PanelTitle } from "../ui";
 
 const sceneButton = "h-14 text-[15px]";
 
 /**
- * Player intro: shown only while the intro is on air (taken from the Scenes panel, where
- * it opens on the club logo). Steps logo → first player → … → last, timed by the operator
+ * Player intro stepper: always shown at the same height, disabled until the intro is on air
+ * (taken from the Scenes panel, where it opens on the club logo). Steps logo → first player → … → last, timed by the operator
  * to the commentary (buttons, arrow keys or a presenter clicker); Prev from the first
  * player goes back to the logo.
  */
@@ -50,6 +50,10 @@ export function PresentationPanel({ active }: { active: boolean }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
       if ((e.target as HTMLElement).closest("input, select, textarea, [contenteditable]")) return;
+      // Not while a dialog (lineup editor) or popover (clock, scorer) is open on top.
+      // Only those on the shown page: hidden pages stay mounted.
+      const open = document.querySelectorAll("dialog[open], [role='dialog']");
+      if ([...open].some((el) => !el.closest("[hidden]"))) return;
       if (e.key === "ArrowRight" || e.key === "PageDown") stepRef.current(1);
       else if (e.key === "ArrowLeft" || e.key === "PageUp") stepRef.current(-1);
       else return;
@@ -59,33 +63,42 @@ export function PresentationPanel({ active }: { active: boolean }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [active, isOnAir]);
 
-  if (!isOnAir) return null;
   const team = data.teams[side];
+  const status = !isOnAir
+    ? "Take Player intro to step through"
+    : index >= 0
+      ? players[index].name
+      : players.length
+        ? `Club logo · ${players.length} players next`
+        : "Club logo · no players. Pick the lineup first.";
 
+  // Always rendered at the same height (on air or not), so the panels around it never move.
   return (
-    <Panel className="border-danger">
-      <PanelTitle>Player intro · {team?.name ?? (side === "home" ? "Home" : "Away")}</PanelTitle>
+    <Panel className={cn("border-2", isOnAir && "border-danger")}>
+      <PanelTitle>
+        <span className="truncate">Player intro{isOnAir && ` · ${team?.name ?? (side === "home" ? "Home" : "Away")}`}</span>
+        {isOnAir && <span className="ml-auto shrink-0 text-danger">On air</span>}
+      </PanelTitle>
       <PanelBody>
         <div className="flex min-h-7 items-baseline gap-2.5">
-          <span className="font-condensed text-[22px] font-bold whitespace-nowrap text-accent tabular-nums">
-            {index >= 0 ? `${index + 1} / ${players.length}` : "Logo"}
+          <span
+            className={cn(
+              "font-condensed text-[22px] font-bold whitespace-nowrap tabular-nums",
+              isOnAir ? "text-accent" : "text-dim",
+            )}
+          >
+            {!isOnAir ? "–" : index >= 0 ? `${index + 1} / ${players.length}` : "Logo"}
           </span>
-          <span className="truncate text-[15px]">
-            {index >= 0
-              ? players[index].name
-              : players.length
-                ? `Club logo · ${players.length} players next`
-                : "Club logo · no players. Pick the lineup first."}
-          </span>
+          <span className={cn("truncate text-[15px]", !isOnAir && "text-dim")}>{status}</span>
         </div>
         <div className="grid grid-cols-[1fr_1.4fr] gap-2">
-          <Button variant="scene" className={sceneButton} disabled={index < 0} onClick={() => step(-1)}>
+          <Button variant="scene" className={sceneButton} disabled={!isOnAir || index < 0} onClick={() => step(-1)}>
             ◀ Prev
           </Button>
           <Button
             variant="scene"
-            className={`${sceneButton} border-accent bg-accent text-white`}
-            disabled={players.length === 0 || index === players.length - 1}
+            className={cn(sceneButton, isOnAir && "border-accent bg-accent text-white")}
+            disabled={!isOnAir || players.length === 0 || index === players.length - 1}
             onClick={() => step(1)}
           >
             Next ▶

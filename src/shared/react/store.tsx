@@ -26,6 +26,11 @@ export function LiveDataProvider({ children, fallback = null }: { children: Reac
   return data ? <LiveDataContext.Provider value={data}>{children}</LiveDataContext.Provider> : fallback;
 }
 
+/** Provides LiveData from elsewhere (e.g. the output page's static mode), for `useLiveData()`. */
+export function ProvideLiveData({ data, children }: { data: LiveData; children: ReactNode }) {
+  return <LiveDataContext.Provider value={data}>{children}</LiveDataContext.Provider>;
+}
+
 export function useLiveData(): LiveData {
   const data = useContext(LiveDataContext);
   if (!data) throw new Error("useLiveData() outside <LiveDataProvider>");

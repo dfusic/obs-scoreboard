@@ -5,6 +5,7 @@ import { gridColumns, sponsorsByTier, sponsorSlide } from "@shared/sponsors";
 import { theme } from "@shared/themes";
 import { FPS } from "@shared/transitions";
 import { useTicking } from "@shared/react/hooks";
+import { useStaticMode } from "./static";
 import type { ClockState, Player, SceneConfig, SceneType, SchemeColors, Side, Sponsor, TeamProfile } from "@shared/types";
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
@@ -188,8 +189,14 @@ function Marquee({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 /** Ticks on its own, so the rest of the page re-renders only on new data. */
+/**
+ * Clock ticks every TICK_MS, except on a still thumbnail (static mode): computed once, on
+ * purpose. A gallery thumbnail is a still; it doesn't follow the running clock.
+ */
+const useClockText = (clock: ClockState) => useTicking((now) => formatClock(clock, now), useStaticMode() ? null : undefined);
+
 const ScoreboardClock = memo(function ScoreboardClock({ clock }: { clock: ClockState }) {
-  const [minutes, seconds] = useTicking((now) => formatClock(clock, now)).split(":");
+  const [minutes, seconds] = useClockText(clock).split(":");
   return (
     <div className="clock">
       <span>{minutes}</span>
@@ -210,7 +217,7 @@ function scoreboardVars(colors: SchemeColors): CSSProperties {
 }
 
 const BarClock = memo(function BarClock({ clock }: { clock: ClockState }) {
-  return <div className="bar-clock">{useTicking((now) => formatClock(clock, now))}</div>;
+  return <div className="bar-clock">{useClockText(clock)}</div>;
 });
 
 function BarSide({ data, side }: { data: LiveData; side: Side }) {
@@ -290,7 +297,7 @@ export const SemaforStripes = memo(function SemaforStripes({ colors }: { colors:
 });
 
 const SemaforClock = memo(function SemaforClock({ clock }: { clock: ClockState }) {
-  const [minutes, seconds] = useTicking((now) => formatClock(clock, now)).split(":");
+  const [minutes, seconds] = useClockText(clock).split(":");
   return (
     <div className="sem-clock">
       <span>{minutes}</span>
@@ -505,8 +512,11 @@ function SponsorRotation({ data, config }: SceneProps) {
   const seconds = config.secondsPerSponsor;
   const slideRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  // A static thumbnail shows the first sponsor, fully up, with no timers.
+  const isStatic = useStaticMode();
 
   useEffect(() => {
+    if (isStatic) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let frame = 0;
     const tick = () => {
@@ -522,12 +532,12 @@ function SponsorRotation({ data, config }: SceneProps) {
       clearTimeout(timer);
       cancelAnimationFrame(frame);
     };
-  }, [count, startedAtMs, seconds]);
+  }, [count, startedAtMs, seconds, isStatic]);
 
   const sponsor = count ? list[index % count] : null;
   return (
     <div className="card sponsors-single">
-      <div ref={slideRef} className="sp-slide">
+      <div ref={slideRef} className="sp-slide" style={isStatic ? { opacity: 1 } : undefined}>
         {sponsor?.logo && <img className="sp-slide-logo" src={sponsor.logo} alt="" />}
       </div>
     </div>

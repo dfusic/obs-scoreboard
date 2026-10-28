@@ -1,10 +1,16 @@
-import { deleteDoc, doc, onSnapshot, setDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { deleteDoc, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { normalizeSponsor } from "../normalize";
-import { compareSponsors } from "../sponsors";
+import { withoutUndefined } from "../objects";
+import { compareSponsors, sponsorOrderWrites, type SponsorWrite } from "../sponsors";
 import type { SponsorsApi } from "../store/types";
 import { NEW_SPONSOR, type SponsorFields } from "../types";
-import { db } from "./firebase";
+import { commitInChunks } from "./batch";
 import { logSubscriptionError, sponsorRef, sponsorsCol } from "./workspace";
+
+/** One batch (up to 450 sponsors), so a move between tiers is never half applied. */
+function commitSponsorWrites(writes: SponsorWrite[]) {
+  return commitInChunks(writes.map(({ id, fields }) => (batch) => batch.update(sponsorRef(id), fields)));
+}
 
 export const sponsorsApi: SponsorsApi = {
   subscribe(onChange) {
@@ -20,22 +26,35 @@ export const sponsorsApi: SponsorsApi = {
 
   create(fields = {}) {
     const ref = doc(sponsorsCol());
-    void setDoc(ref, { ...NEW_SPONSOR, ...fields });
+    void setDoc(ref, { ...NEW_SPONSOR, ...withoutUndefined(fields) });
     return ref.id;
   },
 
   async update(id, fields) {
-    await updateDoc(sponsorRef(id), fields);
+    const changes = withoutUndefined(fields);
+    if (Object.keys(changes).length) await updateDoc(sponsorRef(id), changes);
   },
 
-  // A batch, not a transaction: it applies locally at once and syncs on reconnect.
-  async reorder(ids) {
-    const batch = writeBatch(db);
-    ids.forEach((id, order) => batch.update(sponsorRef(id), { order }));
-    await batch.commit();
+  // Batches, not a transaction: they apply locally at once and sync on reconnect.
+  async reorder(orderedIds, current) {
+    await commitSponsorWrites(sponsorOrderWrites(orderedIds, current));
+  },
+
+  async place(id, tier, orderedIds, current) {
+    await commitSponsorWrites(sponsorOrderWrites(orderedIds, current, { id, tier }));
+  },
+
+  async updateMany(ids, fields) {
+    const changes = withoutUndefined(fields);
+    if (Object.keys(changes).length === 0) return;
+    await commitInChunks(ids.map((id) => (batch) => batch.update(sponsorRef(id), changes)));
   },
 
   async remove(id) {
     await deleteDoc(sponsorRef(id));
+  },
+
+  async removeMany(ids) {
+    await commitInChunks(ids.map((id) => (batch) => batch.delete(sponsorRef(id))));
   },
 };

@@ -1,18 +1,23 @@
-import { COLOR_SCHEMES, colorScheme, sameColors, sceneLayoutId, theme, themeColors, type SchemeColorKey } from "./themes";
+import { GRAPHICS_DRAFT_ID, sceneDraftId } from "./graphicsDraft";
+import { COLOR_SCHEMES, colorScheme, sameColors, sceneLayoutId, theme, THEMES, themeColors, type SchemeColorKey } from "./themes";
 import { secondsPerSponsor } from "./sponsors";
-import { transition } from "./transitions";
+import { transition, TRANSITIONS } from "./transitions";
 import {
   createInitialMatchState,
   defaultSceneConfigs,
   NEW_SPONSOR,
   NEW_TEAM,
   SCENE_TYPES,
+  type GraphicsDraft,
+  type GraphicsPatch,
   type GraphicsSettings,
   type MatchState,
   type Player,
   type PlayerFields,
   type SceneConfig,
   type SceneConfigs,
+  type ScenePatch,
+  type SchemeColors,
   type SceneType,
   type Side,
   type Sponsor,
@@ -48,8 +53,18 @@ export function normalizeMatch(data: Partial<MatchState> | undefined): MatchStat
   };
 }
 
+const count = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, v) : null);
+
+/** Counts and timestamp are null on teams saved before they existed (see TeamProfile). */
 export function normalizeTeam(id: string, data: Partial<TeamFields>): TeamProfile {
-  return { ...NEW_TEAM, ...data, id };
+  return {
+    ...NEW_TEAM,
+    ...data,
+    id,
+    playerCount: count(data.playerCount),
+    missingPhotos: count(data.missingPhotos),
+    updatedAtMs: count(data.updatedAtMs),
+  };
 }
 
 export function normalizePlayer(id: string, data: Partial<PlayerFields>): Player {
@@ -63,6 +78,7 @@ export function normalizeSponsor(id: string, data: Partial<SponsorFields>): Spon
     logo: typeof data.logo === "string" ? data.logo : null,
     tier: data.tier === "main" ? "main" : "partner",
     order: typeof data.order === "number" && Number.isFinite(data.order) ? data.order : NEW_SPONSOR.order,
+    hidden: data.hidden === true,
   };
 }
 
@@ -126,4 +142,63 @@ export function comparePlayers(a: Player, b: Player): number {
 
 export function compareTeams(a: TeamProfile, b: TeamProfile): number {
   return a.name.localeCompare(b.name);
+}
+
+/** A whole, valid colour set (background may be null), else undefined. Draft colours are always whole. */
+function wholeColors(value: unknown): SchemeColors | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const stored = value as Record<string, unknown>;
+  const colors = themeColors(THEMES[0]);
+  for (const key of Object.keys(colors) as SchemeColorKey[]) {
+    const v = stored[key];
+    if (isColor(v)) colors[key] = v;
+    else if (key === "background" && v === null) colors.background = null;
+    else return undefined;
+  }
+  return colors;
+}
+
+const imageOrNull = (v: unknown): string | null | undefined => (typeof v === "string" || v === null ? v : undefined);
+
+function normalizeGraphicsPatch(data: Record<string, unknown>): GraphicsPatch {
+  const patch: GraphicsPatch = {};
+  if (THEMES.some((t) => t.id === data.theme)) patch.theme = data.theme as string;
+  const colors = wholeColors(data.colors);
+  if (colors) patch.colors = colors;
+  if (TRANSITIONS.some((t) => t.id === data.transition)) patch.transition = data.transition as string;
+  return patch;
+}
+
+function normalizeScenePatch(type: SceneType, data: Record<string, unknown>): ScenePatch {
+  const patch: ScenePatch = {};
+  if (typeof data.title === "string") patch.title = data.title;
+  if (typeof data.subtitle === "string") patch.subtitle = data.subtitle;
+  const background = imageOrNull(data.background);
+  if (background !== undefined) patch.background = background;
+  const logo = imageOrNull(data.logo);
+  if (logo !== undefined) patch.logo = logo;
+  if (typeof data.layout === "string") patch.layout = sceneLayoutId(type, data.layout);
+  if (typeof data.secondsPerSponsor === "number") patch.secondsPerSponsor = secondsPerSponsor(data.secondsPerSponsor);
+  return patch;
+}
+
+/**
+ * The Graphics draft from its docs (`graphics`, `scene-{type}`). Unknown docs and fields,
+ * unknown theme / transition ids and incomplete colour sets are dropped.
+ */
+export function normalizeDraft(entries: Iterable<[string, Record<string, unknown> | undefined]>): GraphicsDraft {
+  const draft: GraphicsDraft = { graphics: {}, scenes: {} };
+  for (const [id, data] of entries) {
+    if (!data) continue;
+    if (id === GRAPHICS_DRAFT_ID) {
+      draft.graphics = normalizeGraphicsPatch(data);
+      continue;
+    }
+    const type = SCENE_TYPES.find((t) => sceneDraftId(t) === id);
+    if (type) {
+      const patch = normalizeScenePatch(type, data);
+      if (Object.keys(patch).length) draft.scenes[type] = patch;
+    }
+  }
+  return draft;
 }

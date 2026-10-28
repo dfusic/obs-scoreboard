@@ -8,7 +8,7 @@ export const TICK_MS = 250;
  * re-renders when the result changes (e.g. once a second for "mm:ss"), so keep results
  * primitive and put this hook in the smallest component that needs it.
  */
-export function useTicking<T>(compute: (nowMs: number) => T, intervalMs = TICK_MS): T {
+export function useTicking<T>(compute: (nowMs: number) => T, intervalMs: number | null = TICK_MS): T {
   const value = compute(Date.now());
   const latest = useRef({ compute, value });
   useLayoutEffect(() => {
@@ -17,6 +17,8 @@ export function useTicking<T>(compute: (nowMs: number) => T, intervalMs = TICK_M
   const [, rerender] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
+    // null: computed once per render, no timer (e.g. still thumbnails).
+    if (intervalMs === null) return;
     const id = setInterval(() => {
       const { compute, value } = latest.current;
       if (!Object.is(compute(Date.now()), value)) rerender();
