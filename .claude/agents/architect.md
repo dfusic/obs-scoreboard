@@ -17,7 +17,7 @@ control (src/control, login)                 overlay (src/overlay, public, read-
            @shared/liveFeed: match → selected teams + their players, scenes, graphics → LiveData
            @shared pure logic: clock, program, lineup, templates, normalize (tested)
                        |
-           DataStore interface (@shared/store/types.ts): auth, match, teams, players, scenes, graphics, sync
+           DataStore interface (@shared/store/types.ts): auth, match, teams, players, sponsors, scenes, graphics, graphicsDraft, sync
            createStore() → firestoreStore (src/shared/firestore: the only place that imports Firebase)
                        |
            Firestore workspaces/{default}/… + persistent multi-tab IndexedDB cache; Firebase Auth
@@ -36,11 +36,11 @@ Load-bearing decisions, don't break them without a deliberate redesign:
 ## Known gaps and pending work
 
 Track these; when you touch one, fix or update it here and in `.claude/CLAUDE.md`:
-1. **Edits go on air immediately.** The overlay renders the latest saved graphics, scene configs and team data, so the only "not on air" state is the Graphics draft. The planned flow is draft → saved → on air at the next take (owned with `control-ux-reviewer`). This is an architectural change: decide how "what's on air" is pinned (e.g. versions or an applied snapshot recorded at take time vs. overlay-local state), how the automatic return to the scoreboard (no write) picks up saved changes, and how several overlays and reloads stay consistent. `GraphicsApi.save` is documented as "shows on air at once" and will change.
+1. **Edits go on air immediately, except Graphics.** Decided 2026-10-27 (dashboard redesign): the Graphics page keeps a shared draft in `drafts/` (`store.graphicsDraft`: save / publish / discard, one batch each; pure helpers in `graphicsDraft.ts`) and publishes it into the on-air docs. Team, player and sponsor edits stay immediate on air (user decision). The old immediate `graphics.save` / `scenes.update` were removed; `graphicsDraft.publish()` is the only way the look and scene configs change on air.
 2. **`teamsApi.remove` does a server read (`getDocs`) in a write path**, against the offline rule: offline it can only see cached players and may leave orphans. Needs an offline-safe design (e.g. delete from the caller's known player list, or soft delete).
 3. **`ensureInitialized` uses a transaction**: an accepted exception (it gives up offline and `updateMatch` recreates the doc), keep it the only one.
-4. **The overlay bundles Firebase Auth** although it never signs in, because `firestore/index.ts` builds one store with `auth`. Consider a read-only store for the overlay or lazy auth.
-5. **Doc drift:** the CLAUDE.md "Data store" list omits `graphics`, and the `subscribeToLive` description omits graphics in `LiveData`.
+4. **The live overlay loads Firebase Auth** although it never signs in, because `firestore/index.ts` builds one store with `auth`. The store is now a dynamic `import()` in `overlay/main.tsx` (static thumbnails never load Firebase); a read-only store for the overlay or lazy auth would trim the live page too.
+5. **Denormalized team counts** (`playerCount`, `missingPhotos`) are kept by `increment` in the players' batches and can drift (null on old teams, concurrent edits, `teams.remove`); the Teams page repairs them from a loaded squad (`staleTeamStats` + `teams.setStats`). Keep every player write going through `players.*`.
 6. **Planned `local` DataStore** for fully offline venues (control and overlay on one machine via a local hub). Everything new must be implementable on it: no Firestore-only semantics leaking through the interface.
 7. **Multi-tenancy:** single `WORKSPACE_ID = "default"`; rules let any signed-in user write everything and anyone read all of `workspaces/**` (including player data). Per-customer workspaces need workspace membership in rules and a way to pick the id.
 8. **Large modules:** `src/control/App.tsx` (~470 lines: login, sidebar, overlay window/screen picking, sync and error indicators) and `overlay/scenes.tsx` (~510) are candidates to split by concern when next changed.

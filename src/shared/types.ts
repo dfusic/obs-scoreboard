@@ -19,9 +19,22 @@ export interface TeamProfile {
   primaryColor: string;
   secondaryColor: string;
   logo: string | null;
+  /**
+   * Players in the squad, kept up to date by the players store operations (`increment`).
+   * Denormalized for the team cards; null on teams saved before it existed (count them
+   * with `squadStats()` and repair with `teams.setStats()`).
+   */
+  playerCount: number | null;
+  /** Players without a photo; same rules as `playerCount`. */
+  missingPhotos: number | null;
+  /** Date.now() of the team's last create/update from the control page; null on older teams. */
+  updatedAtMs: number | null;
 }
 
 export type TeamFields = Omit<TeamProfile, "id">;
+/** What the operator edits on a team; the counts and timestamp are kept by the store. */
+export type TeamEditableFields = Omit<TeamFields, "playerCount" | "missingPhotos" | "updatedAtMs">;
+export type TeamStats = Pick<TeamProfile, "playerCount" | "missingPhotos">;
 
 export const NEW_TEAM: TeamFields = {
   name: "New team",
@@ -30,6 +43,9 @@ export const NEW_TEAM: TeamFields = {
   primaryColor: "#1e3a8a",
   secondaryColor: "#ffffff",
   logo: null,
+  playerCount: 0,
+  missingPhotos: 0,
+  updatedAtMs: null,
 };
 
 /** A squad member, stored in workspaces/{ws}/players/{id}. Photo is an inline PNG data URL (transparent cut-outs). */
@@ -57,11 +73,13 @@ export interface Sponsor {
   tier: SponsorTier;
   /** Position in the sponsor list (ascending); the Sponsors scene keeps it within each tier. */
   order: number;
+  /** Kept in the list but left out of the Sponsors scene. */
+  hidden: boolean;
 }
 
 export type SponsorFields = Omit<Sponsor, "id">;
 
-export const NEW_SPONSOR: SponsorFields = { name: "New sponsor", logo: null, tier: "partner", order: 0 };
+export const NEW_SPONSOR: SponsorFields = { name: "New sponsor", logo: null, tier: "partner", order: 0, hidden: false };
 
 export const SCENE_TYPES = [
   "scoreboard",
@@ -202,4 +220,29 @@ export interface GraphicsSettings {
   colors: SchemeColors;
   /** A TRANSITIONS id (transitions.ts): the effect between scenes. */
   transition: string;
+}
+
+/**
+ * Graphics drafts (workspaces/{ws}/drafts/): changes made on the Graphics page that are
+ * not on air yet. Each patch holds only the fields that differ from what's on air; an
+ * empty patch has no doc. Publishing merges them into the on-air docs.
+ */
+
+/** Draft of the global look (`drafts/graphics`). `colors`, when present, is the whole set. */
+export type GraphicsPatch = Partial<GraphicsSettings>;
+
+/** Draft of one scene's own settings (`drafts/scene-{type}`). A null image clears the on-air one. */
+export type ScenePatch = Partial<Omit<SceneConfig, "accentColor">>;
+
+export interface GraphicsDraft {
+  graphics: GraphicsPatch;
+  scenes: Partial<Record<SceneType, ScenePatch>>;
+}
+
+export const EMPTY_DRAFT: GraphicsDraft = { graphics: {}, scenes: {} };
+
+/** What's on air: the saved graphics and scene configs (the base a draft applies to). */
+export interface OnAirGraphics {
+  graphics: GraphicsSettings;
+  scenes: SceneConfigs;
 }

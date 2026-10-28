@@ -1,9 +1,11 @@
 import { matchPlayers, type LiveData } from "@shared/liveFeed";
 import { normalizeGraphics } from "@shared/normalize";
 import { useLiveData } from "@shared/react/store";
-import { SCENE_TYPES, type GraphicsSettings, type SceneType } from "@shared/types";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import type { PreviewScenesMessage } from "@shared/previewMessages";
+import { SCENE_TYPES, type GraphicsSettings, type SceneConfigs, type SceneType } from "@shared/types";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { SCENES, SemaforStripes, type SceneTarget } from "./scenes";
+import { useStaticMode } from "./static";
 import { TransitionCurtain, useSceneTransition } from "./Transition";
 
 const isScene = (v: unknown): v is SceneType => (SCENE_TYPES as readonly unknown[]).includes(v);
@@ -42,6 +44,34 @@ function usePreviewGraphics(): GraphicsSettings | null {
   return graphics;
 }
 
+/**
+ * Preview override from the Graphics page: unsaved scene settings (e.g. its draft), shown
+ * only in its preview. Each given scene's fields are merged over the saved config.
+ */
+function usePreviewScenes(): PreviewScenesMessage["scenes"] {
+  const [scenes, setScenes] = useState<PreviewScenesMessage["scenes"]>(null);
+  useEffect(() => {
+    const onMessage = (e: MessageEvent<PreviewScenesMessage>) => {
+      if (e.origin !== location.origin || e.data?.type !== "preview-scenes") return;
+      const next = e.data.scenes;
+      setScenes(next && typeof next === "object" ? next : null);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+  return scenes;
+}
+
+function withPreviewScenes(saved: SceneConfigs, preview: PreviewScenesMessage["scenes"]): SceneConfigs {
+  if (!preview) return saved;
+  const scenes = { ...saved };
+  for (const type of SCENE_TYPES) {
+    const config = preview[type];
+    if (config && typeof config === "object") scenes[type] = { ...saved[type], ...config };
+  }
+  return scenes;
+}
+
 /** Counts "preview-transition" messages: the Graphics page asks to play the transition again. */
 function usePreviewReplay(): number {
   const [count, setCount] = useState(0);
@@ -66,8 +96,11 @@ function sceneTarget(data: LiveData, preview: boolean): SceneTarget {
 
 export function Overlay() {
   const live = useLiveData();
+  const isStatic = useStaticMode();
   const previewGraphics = usePreviewGraphics();
-  const data = previewGraphics ? { ...live, graphics: previewGraphics } : live;
+  const previewScenes = usePreviewScenes();
+  const scenes = useMemo(() => withPreviewScenes(live.scenes, previewScenes), [live.scenes, previewScenes]);
+  const data = previewGraphics || previewScenes ? { ...live, graphics: previewGraphics ?? live.graphics, scenes } : live;
   const previewScene = usePreviewScene();
   const scene = previewScene ?? data.match.program.scene;
   const target = sceneTarget(data, previewScene !== null);
@@ -76,7 +109,9 @@ export function Overlay() {
   const targets = useRef<Partial<Record<SceneType, SceneTarget>>>({});
   targets.current[scene] = target;
 
-  const { role, shown, running } = useSceneTransition(scene, data.graphics.transition, usePreviewReplay());
+  // A static thumbnail cuts: it shows one settled scene.
+  const transitionId = isStatic ? "cut" : data.graphics.transition;
+  const { role, shown, running } = useSceneTransition(scene, transitionId, usePreviewReplay());
 
   // A scene's own background image replaces the default video (static, in overlay.html).
   // Without one, the colour scheme's background colour (if it has one) does. It follows
@@ -98,7 +133,7 @@ export function Overlay() {
     <>
       <img className="bg-image" src={background ?? undefined} alt="" />
       {themeId === "semafor" && <SemaforStripes colors={data.graphics.colors} />}
-      {SCENE_TYPES.map((type) => {
+      {(isStatic ? [scene] : SCENE_TYPES).map((type) => {
         const Scene = SCENES[type];
         return (
           <section key={type} className="scene" data-layer={type} data-tr={role(type)} style={accent}>

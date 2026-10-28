@@ -20,6 +20,19 @@
   --color-danger: #e83a3a;
   --color-success: #00d26a;
   --color-warning: #f5a623;
+  /* Readable text in the accent / danger hue on dark tinted backgrounds (badges). */
+  --color-accent-text: #8db8ff;
+  --color-danger-text: #ff8080;
+
+  /* State surfaces: what's on air, the current item, unsaved drafts, saved-not-on-air. */
+  --color-on-air-bg: #2a1216;
+  --color-selected-bg: #1a2035;
+  --color-unsaved-bg: #0f1a2e;
+  --color-pending-bg: #21190b;
+  /* Hover behind a destructive item (log out). */
+  --color-danger-bg: #1a0f0f;
+  /* Light box behind sponsor logos, so dark logos read. */
+  --color-logo-bg: #f4f4f2;
 
   --font-sans: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-condensed: "Barlow Condensed", "Arial Narrow", sans-serif;

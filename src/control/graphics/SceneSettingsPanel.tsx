@@ -1,8 +1,9 @@
-import { useLiveData, useStore } from "@shared/react/store";
 import { MAX_SECONDS_PER_SPONSOR, MIN_SECONDS_PER_SPONSOR, secondsPerSponsor } from "@shared/sponsors";
 import { SCENE_LAYOUTS } from "@shared/themes";
-import { SCENE_LABELS, type SceneConfig, type SceneType } from "@shared/types";
+import { SCENE_LABELS, type SceneConfig, type ScenePatch, type SceneType } from "@shared/types";
+import type { ReactNode } from "react";
 import { BACKGROUND_IMAGE, LOGO_IMAGE } from "../images";
+import { ChangeDot, changeState } from "./status";
 import { PickerOption, ScopeTag, VIDEO_THUMB_BG } from "./ThemePanels";
 import {
   Button,
@@ -27,33 +28,56 @@ import {
 const hasTextOptions = (type: SceneType) => type !== "scoreboard" && type !== "presentation" && type !== "playerCard";
 
 /**
- * One scene's own options (its colours come from the global colour scheme). They save as
- * you go and show on air wherever the scene is. `highlight` is the colour scheme's, for
- * the layout thumbnails.
+ * A scene's settings as the Graphics page shows them: `config` (with unsaved edits),
+ * `saved` and `onAir`, for the change dots. `onChange` edits the page's unsaved draft;
+ * nothing is written here.
  */
-export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highlight: string }) {
-  const store = useStore();
-  const config = useLiveData().scenes[type];
-  const save = (fields: Partial<SceneConfig>) => void store.scenes.update(type, fields);
-  const upload = useImageUpload(BACKGROUND_IMAGE, (background) => store.scenes.update(type, { background }));
+export interface SceneEditProps {
+  type: SceneType;
+  config: SceneConfig;
+  saved: SceneConfig;
+  onAir: SceneConfig;
+  onChange: (fields: ScenePatch) => void;
+}
+
+/** A field label with its change dot. */
+function label(text: string, props: SceneEditProps, ...keys: (keyof ScenePatch)[]): ReactNode {
+  const states = keys.map((k) => changeState(props.config[k], props.saved[k], props.onAir[k]));
+  const state = states.includes("unsaved") ? "unsaved" : states.includes("saved") ? "saved" : null;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {text}
+      <ChangeDot state={state} />
+    </span>
+  );
+}
+
+/**
+ * One scene's own options (its colours come from the global colour scheme): layout, texts,
+ * seconds per sponsor and background image. `highlight` is the colour scheme's, for the
+ * layout thumbnails. Key it by scene so the text fields show that scene's values.
+ */
+export function SceneSettingsPanel(props: SceneEditProps & { highlight: string }) {
+  const { type, config, onChange, highlight } = props;
+  const upload = useImageUpload(BACKGROUND_IMAGE, async (background) => onChange({ background }));
 
   return (
     <Panel>
       <PanelTitle>
-        {type === "scoreboard" ? "Background image" : `${SCENE_LABELS[type]} settings`}
+        {SCENE_LABELS[type]} settings
         <Spacer />
-        <ScopeTag>This scene</ScopeTag>
+        <ScopeTag>This scene only</ScopeTag>
       </PanelTitle>
       <PanelBody>
         {SCENE_LAYOUTS[type] && (
-          <Field label="Layout">
+          <Field label={label("Layout", props, "layout")}>
             <div className="grid grid-cols-2 gap-2.5">
               {SCENE_LAYOUTS[type].map((l) => (
                 <PickerOption
                   key={l.id}
                   name={l.name}
                   selected={config.layout === l.id}
-                  onPick={() => save({ layout: l.id })}
+                  onPick={() => onChange({ layout: l.id })}
                 >
                   <SceneLayoutThumb id={l.id} title={config.title} highlight={highlight} />
                 </PickerOption>
@@ -62,34 +86,32 @@ export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highl
           </Field>
         )}
 
-        {/* Keyed by scene so switching tabs shows that scene's values. */}
         {hasTextOptions(type) && (
-          <div key={type} className="grid grid-cols-2 gap-3">
-            <Field label="Title" htmlFor="scene-title">
-              <CommitInput id="scene-title" type="text" value={config.title} onCommit={(v) => save({ title: v.trim() })} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={label("Title", props, "title")} htmlFor="scene-title">
+              <CommitInput id="scene-title" type="text" value={config.title} onCommit={(v) => onChange({ title: v.trim() })} />
             </Field>
-            <Field label="Subtitle" htmlFor="scene-subtitle">
+            <Field label={label("Subtitle", props, "subtitle")} htmlFor="scene-subtitle">
               <CommitInput
                 id="scene-subtitle"
                 type="text"
                 value={config.subtitle}
-                onCommit={(v) => save({ subtitle: v.trim() })}
+                onCommit={(v) => onChange({ subtitle: v.trim() })}
               />
             </Field>
           </div>
         )}
 
         {type === "sponsors" && config.layout === "single" && (
-          <Field label="Seconds per sponsor" htmlFor="scene-seconds">
+          <Field label={label("Seconds per sponsor", props, "secondsPerSponsor")} htmlFor="scene-seconds">
             <CommitInput
-              key={type}
               id="scene-seconds"
               type="number"
               min={MIN_SECONDS_PER_SPONSOR}
               max={MAX_SECONDS_PER_SPONSOR}
               step={1}
               value={String(config.secondsPerSponsor)}
-              onCommit={(v) => save({ secondsPerSponsor: secondsPerSponsor(Number(v)) })}
+              onCommit={(v) => onChange({ secondsPerSponsor: secondsPerSponsor(Number(v)) })}
               className="w-28"
             />
           </Field>
@@ -102,7 +124,7 @@ export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highl
           </Hint>
         )}
 
-        <Field label={type === "scoreboard" ? "Image" : "Background"}>
+        <Field label={label("Background image", props, "background")}>
           <div className="flex items-center gap-3">
             <div className="flex h-14 w-[100px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line-strong bg-well text-faint">
               <Thumb url={config.background} className="size-full object-cover" />
@@ -110,7 +132,7 @@ export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highl
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <UploadButton onChange={upload.onChange}>Upload background</UploadButton>
               {config.background && (
-                <Button variant="ghost" className="h-7 w-full text-[11px]" onClick={() => save({ background: null })}>
+                <Button variant="ghost" className="h-7 w-full text-[11px]" onClick={() => onChange({ background: null })}>
                   Remove image
                 </Button>
               )}
@@ -118,10 +140,7 @@ export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highl
           </div>
           {upload.status && <ErrorText>{upload.status}</ErrorText>}
         </Field>
-        <Hint>
-          An image replaces the colour scheme's background (colour or video) on this scene only. Changes save as you go
-          and apply wherever this scene is shown.
-        </Hint>
+        <Hint>An image replaces the colour scheme's background (colour or video) on this scene only.</Hint>
       </PanelBody>
     </Panel>
   );
@@ -129,19 +148,22 @@ export function SceneSettingsPanel({ type, highlight }: { type: SceneType; highl
 
 /**
  * The competition shown in the middle of the Semafor scoreboard: a logo, or two lines
- * of text without one. Stored on the scoreboard scene (logo, title, subtitle).
+ * of text without one. Stored on the scoreboard scene (logo, title, subtitle); pass the
+ * scoreboard's edit props.
  */
-export function CompetitionPanel() {
-  const store = useStore();
-  const config = useLiveData().scenes.scoreboard;
-  const save = (fields: Partial<SceneConfig>) => void store.scenes.update("scoreboard", fields);
-  const upload = useImageUpload(LOGO_IMAGE, (logo) => store.scenes.update("scoreboard", { logo }));
+export function CompetitionPanel(props: SceneEditProps) {
+  const { config, onChange } = props;
+  const upload = useImageUpload(LOGO_IMAGE, async (logo) => onChange({ logo }));
 
   return (
     <Panel>
-      <PanelTitle>Competition</PanelTitle>
+      <PanelTitle>
+        Competition
+        <Spacer />
+        <ScopeTag>Semafor scoreboard</ScopeTag>
+      </PanelTitle>
       <PanelBody>
-        <Field label="Logo">
+        <Field label={label("Logo", props, "logo")}>
           <div className="flex items-center gap-3">
             <div className="flex h-14 w-[100px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line-strong bg-well text-faint">
               <Thumb url={config.logo} className="size-full object-contain" />
@@ -149,7 +171,7 @@ export function CompetitionPanel() {
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <UploadButton onChange={upload.onChange}>Upload logo</UploadButton>
               {config.logo && (
-                <Button variant="ghost" className="h-7 w-full text-[11px]" onClick={() => save({ logo: null })}>
+                <Button variant="ghost" className="h-7 w-full text-[11px]" onClick={() => onChange({ logo: null })}>
                   Remove logo
                 </Button>
               )}
@@ -158,26 +180,26 @@ export function CompetitionPanel() {
           {upload.status && <ErrorText>{upload.status}</ErrorText>}
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Line 1" htmlFor="competition-title">
+          <Field label={label("Line 1", props, "title")} htmlFor="competition-title">
             <CommitInput
               id="competition-title"
               type="text"
               placeholder="e.g. Treća NL"
               value={config.title}
-              onCommit={(v) => save({ title: v.trim() })}
+              onCommit={(v) => onChange({ title: v.trim() })}
             />
           </Field>
-          <Field label="Line 2" htmlFor="competition-subtitle">
+          <Field label={label("Line 2", props, "subtitle")} htmlFor="competition-subtitle">
             <CommitInput
               id="competition-subtitle"
               type="text"
               placeholder="e.g. Sjever"
               value={config.subtitle}
-              onCommit={(v) => save({ subtitle: v.trim() })}
+              onCommit={(v) => onChange({ subtitle: v.trim() })}
             />
           </Field>
         </div>
-        <Hint>Shown above the score. A logo (transparent PNG) replaces the two lines of text. Saves at once.</Hint>
+        <Hint>Shown above the score. A logo (transparent PNG) replaces the two lines of text.</Hint>
       </PanelBody>
     </Panel>
   );
@@ -196,7 +218,7 @@ function SponsorLayoutThumb({ single, title, highlight }: { single: boolean; tit
   return (
     <div className="flex size-full items-center justify-center p-2" style={{ background: VIDEO_THUMB_BG }}>
       <div
-        className="flex size-full flex-col gap-1 rounded-sm border-t-2 bg-[#0a0c10]/90 px-2 py-1.5"
+        className="flex size-full flex-col gap-1 rounded-sm border-t-2 bg-page/90 px-2 py-1.5"
         style={{ borderColor: highlight }}
       >
         {title && (
@@ -236,7 +258,7 @@ function SceneLayoutThumb({ id, title, highlight }: { id: string; title: string;
   return (
     <div className="flex size-full items-center justify-center p-2" style={{ background: VIDEO_THUMB_BG }}>
       <div
-        className="flex size-full flex-col gap-1 rounded-sm border-t-2 bg-[#0a0c10]/90 px-2 py-1.5"
+        className="flex size-full flex-col gap-1 rounded-sm border-t-2 bg-page/90 px-2 py-1.5"
         style={{ borderColor: highlight }}
       >
         <span

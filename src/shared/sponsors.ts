@@ -1,5 +1,5 @@
 import { FPS, frameAt } from "./transitions";
-import type { Sponsor } from "./types";
+import type { Sponsor, SponsorTier } from "./types";
 
 /**
  * The Sponsors scene's pure helpers. Keep them pure; pass Date.now().
@@ -11,17 +11,49 @@ export function compareSponsors(a: Sponsor, b: Sponsor): number {
 }
 
 /**
- * What the scene shows: sponsors with a logo (it shows images only, never names), main
+ * What the scene shows: sponsors with a logo that aren't hidden (it shows images only, never names), main
  * sponsors first, each tier in list order.
  */
 export function sponsorsByTier(sponsors: readonly Sponsor[]): { main: Sponsor[]; partners: Sponsor[] } {
-  const sorted = sponsors.filter((s) => s.logo).sort(compareSponsors);
+  const sorted = sponsors.filter((s) => s.logo && !s.hidden).sort(compareSponsors);
   return { main: sorted.filter((s) => s.tier === "main"), partners: sorted.filter((s) => s.tier !== "main") };
 }
 
 /** The `order` for sponsors added after the existing ones. */
 export function nextSponsorOrder(sponsors: readonly Sponsor[]): number {
   return sponsors.reduce((max, s) => Math.max(max, s.order + 1), 0);
+}
+
+export interface SponsorWrite {
+  id: string;
+  fields: { order?: number; tier?: SponsorTier };
+}
+
+/**
+ * The writes that save a new list order (each id gets its position in `orderedIds`) and,
+ * with `moved`, that sponsor's new tier. Only what differs from `current` (the list as the
+ * caller sees it) is written; ids missing from `current` are always written. Without
+ * `current`, every id gets its order.
+ */
+export function sponsorOrderWrites(
+  orderedIds: readonly string[],
+  current?: readonly Sponsor[],
+  moved?: { id: string; tier: SponsorTier },
+): SponsorWrite[] {
+  const known = new Map(current?.map((s) => [s.id, s]));
+  const writes: SponsorWrite[] = [];
+  orderedIds.forEach((id, order) => {
+    const was = known.get(id);
+    const fields: SponsorWrite["fields"] = {};
+    if (!was || was.order !== order) fields.order = order;
+    if (moved?.id === id && (!was || was.tier !== moved.tier)) fields.tier = moved.tier;
+    if (fields.order !== undefined || fields.tier !== undefined) writes.push({ id, fields });
+  });
+  if (moved && !orderedIds.includes(moved.id)) {
+    const was = known.get(moved.id);
+    if (!was || was.tier !== moved.tier) writes.push({ id: moved.id, fields: { tier: moved.tier } });
+  }
+  return writes;
 }
 
 export const MIN_SECONDS_PER_SPONSOR = 2;

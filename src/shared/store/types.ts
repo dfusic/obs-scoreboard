@@ -1,19 +1,19 @@
 import type {
   ClockState,
   GoalEvent,
+  GraphicsDraft,
   GraphicsSettings,
   Half,
   MatchState,
   Player,
   PlayerFields,
   ProgramState,
-  SceneConfig,
   SceneConfigs,
-  SceneType,
   Side,
   Sponsor,
   SponsorFields,
-  TeamFields,
+  SponsorTier,
+  TeamEditableFields,
   TeamProfile,
 } from "../types";
 
@@ -41,6 +41,7 @@ export interface DataStore {
   readonly sponsors: SponsorsApi;
   readonly scenes: ScenesApi;
   readonly graphics: GraphicsApi;
+  readonly graphicsDraft: GraphicsDraftApi;
   readonly sync: SyncApi;
 }
 
@@ -94,20 +95,40 @@ export interface TeamsApi {
   subscribeAll(onChange: (teams: TeamProfile[]) => void): Unsubscribe;
   /** One team; null if it doesn't exist (e.g. deleted while selected). */
   subscribe(id: string, onChange: (team: TeamProfile | null) => void): Unsubscribe;
-  /** Returns the new id at once; the write itself may still be pending. */
-  create(fields?: Partial<TeamFields>): string;
-  update(id: string, fields: Partial<TeamFields>): Promise<void>;
-  /** Deletes the team and its players. */
-  remove(id: string): Promise<void>;
+  /** Returns the new id at once; the write itself may still be pending. Stamps `updatedAtMs`. */
+  create(fields?: Partial<TeamEditableFields>): string;
+  /** Stamps `updatedAtMs`. Edits show on air at once. */
+  update(id: string, fields: Partial<TeamEditableFields>): Promise<void>;
+  /**
+   * Repairs the squad counts (null on older teams, or drifted), from the whole squad as
+   * loaded by the caller (see staleTeamStats in squad.ts). Doesn't stamp `updatedAtMs`.
+   * A failed repair (e.g. the team was deleted meanwhile) is only logged: it never rejects.
+   */
+  setStats(id: string, stats: { playerCount: number; missingPhotos: number }): Promise<void>;
+  /**
+   * Deletes the team and its players. Pass `playerIds` (the caller's loaded squad) so it
+   * works offline; without them it reads the players from the server.
+   */
+  remove(id: string, playerIds?: string[]): Promise<void>;
 }
 
 export interface PlayersApi {
   /** Players of the given teams, sorted by name. Calls back with [] for no teams. */
   subscribe(teamIds: string[], onChange: (players: Player[]) => void): Unsubscribe;
-  /** Returns the new id at once; the write itself may still be pending. */
+  /**
+   * Returns the new id at once; the write itself may still be pending. Bumps the team's
+   * `playerCount` (and `missingPhotos` without a photo) in a separate write, so a missing
+   * team can't fail the player; a missed bump is repaired from the squad (staleTeamStats).
+   */
   create(fields: PlayerFields): string;
-  update(id: string, fields: Partial<PlayerFields>): Promise<void>;
-  remove(id: string): Promise<void>;
+  /**
+   * `current` is the player as the caller sees it: the team's `missingPhotos` follows a photo
+   * being added or removed, and both teams' counts follow a change of `teamId` (separate
+   * writes, see `create`). Undefined fields are ignored.
+   */
+  update(current: Player, fields: Partial<PlayerFields>): Promise<void>;
+  /** Deletes the player and lowers its team's counts (separate write, see `create`). */
+  remove(player: Player): Promise<void>;
 }
 
 /** The account's own sponsors (not any team's), for the Sponsors scene. */
@@ -117,22 +138,57 @@ export interface SponsorsApi {
   /** Returns the new id at once; the write itself may still be pending. */
   create(fields?: Partial<SponsorFields>): string;
   update(id: string, fields: Partial<SponsorFields>): Promise<void>;
-  /** Saves a new list order: each id gets its position in `ids`, in one write. */
-  reorder(ids: string[]): Promise<void>;
+  /**
+   * Saves a new list order (main first, then partners): each id gets its position in
+   * `orderedIds`, in one batch. Pass `current` (the list as the caller sees it) so only
+   * sponsors whose `order` changes are written; without it every id is written.
+   */
+  reorder(orderedIds: string[], current?: readonly Sponsor[]): Promise<void>;
+  /**
+   * Moves a sponsor, possibly into another tier (drag between tiers): sets its `tier` and
+   * saves `orderedIds` as in `reorder`, in one batch, so it never shows in the new tier at
+   * its old position. `current` as in `reorder`.
+   */
+  place(id: string, tier: SponsorTier, orderedIds: string[], current?: readonly Sponsor[]): Promise<void>;
+  /** Bulk edit (tier, hidden) of the selected sponsors, in batches of up to 450. Edits show on air at once. */
+  updateMany(ids: string[], fields: Partial<{ tier: SponsorTier; hidden: boolean }>): Promise<void>;
   remove(id: string): Promise<void>;
+  /** Deletes the selected sponsors, in batches of up to 450. */
+  removeMany(ids: string[]): Promise<void>;
 }
 
 export interface ScenesApi {
-  /** All scene configs, with defaults for any not customised yet. */
+  /** All scene configs (on air), with defaults for any not customised yet. Changed only through `graphicsDraft.publish`. */
   subscribe(onChange: (scenes: SceneConfigs) => void): Unsubscribe;
-  update(type: SceneType, fields: Partial<SceneConfig>): Promise<void>;
 }
 
 export interface GraphicsApi {
-  /** The look of every scene (theme and colours), with defaults when it was never saved. */
+  /** The look of every scene (theme and colours), with defaults when it was never saved. Changed only through `graphicsDraft.publish`. */
   subscribe(onChange: (graphics: GraphicsSettings) => void): Unsubscribe;
-  /** Replaces the look; it shows on air at once. */
-  save(graphics: GraphicsSettings): Promise<void>;
+}
+
+/**
+ * The Graphics page's saved-but-not-on-air changes (see graphicsDraft.ts). One draft per
+ * workspace, shared by every signed-in control page. Every write is one atomic batch,
+ * offline-safe (no server reads).
+ */
+export interface GraphicsDraftApi {
+  /** The stored draft; `EMPTY_DRAFT` when there is none. */
+  subscribe(onChange: (draft: GraphicsDraft) => void): Unsubscribe;
+  /**
+   * Stores `next` (normally `diffDraft(onAir, shown)`): only the patches that differ from
+   * `stored` (the draft as last received from `subscribe`) are written, an empty patch
+   * deletes its doc. Nothing goes on air.
+   */
+  save(next: GraphicsDraft, stored: GraphicsDraft): Promise<void>;
+  /**
+   * Puts the draft on air: each non-empty patch's fields replace those of its on-air doc
+   * (graphics, scene; `colors` whole, other fields kept) and the draft is cleared, in one write. A null image clears it on air. Stale
+   * fields just rewrite the on-air value; pass `draftChanges(onAir, draft)` to skip them.
+   */
+  publish(draft: GraphicsDraft): Promise<void>;
+  /** Drops the whole draft. */
+  discard(): Promise<void>;
 }
 
 /**

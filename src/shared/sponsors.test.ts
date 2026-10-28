@@ -7,6 +7,7 @@ import {
   SPONSOR_FADE_FRAMES,
   sponsorSlide,
   sponsorsByTier,
+  sponsorOrderWrites,
 } from "./sponsors";
 import { FPS } from "./transitions";
 import type { Sponsor } from "./types";
@@ -17,11 +18,18 @@ const sponsor = (id: string, order: number, tier: Sponsor["tier"] = "partner"): 
   logo: `data:image/png;base64,${id}`,
   tier,
   order,
+  hidden: false,
 });
 
 const frameMs = 1000 / FPS;
 
 describe("sponsorsByTier", () => {
+  it("leaves out hidden sponsors", () => {
+    const { main, partners } = sponsorsByTier([sponsor("a", 0, "main"), { ...sponsor("b", 1, "main"), hidden: true }, { ...sponsor("c", 2), hidden: true }, sponsor("d", 3)]);
+    expect(main.map((s) => s.id)).toEqual(["a"]);
+    expect(partners.map((s) => s.id)).toEqual(["d"]);
+  });
+
   it("puts main sponsors first and keeps list order within each tier", () => {
     const { main, partners } = sponsorsByTier([sponsor("c", 2), sponsor("a", 0, "main"), sponsor("b", 1), sponsor("d", 3, "main")]);
     expect(main.map((s) => s.id)).toEqual(["a", "d"]);
@@ -117,5 +125,82 @@ describe("gridColumns", () => {
 
   it("never has more columns than logos", () => {
     for (let n = 1; n <= 20; n++) expect(gridColumns(n, 3.3)).toBeLessThanOrEqual(n);
+  });
+});
+
+describe("sponsorsByTier hidden and edge cases", () => {
+  it("leaves out hidden sponsors of both tiers, even with a logo", () => {
+    const list = [
+      { ...sponsor("a", 0, "main"), hidden: true },
+      sponsor("b", 1, "main"),
+      { ...sponsor("c", 2), hidden: true },
+      sponsor("d", 3),
+    ];
+    const { main, partners } = sponsorsByTier(list);
+    expect(main.map((s) => s.id)).toEqual(["b"]);
+    expect(partners.map((s) => s.id)).toEqual(["d"]);
+  });
+  it("is empty when every sponsor is hidden or has no logo", () => {
+    expect(sponsorsByTier([{ ...sponsor("a", 0, "main"), hidden: true }, { ...sponsor("b", 1), logo: null }])).toEqual({
+      main: [],
+      partners: [],
+    });
+    expect(sponsorsByTier([])).toEqual({ main: [], partners: [] });
+  });
+  it("treats an empty logo string as no logo", () => {
+    expect(sponsorsByTier([{ ...sponsor("a", 0), logo: "" }]).partners).toEqual([]);
+  });
+  it("doesn't reorder the caller's list", () => {
+    const list = [sponsor("b", 1), sponsor("a", 0)];
+    sponsorsByTier(list);
+    expect(list.map((s) => s.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("nextSponsorOrder with hidden sponsors", () => {
+  it("counts hidden sponsors so a new one never shares their order", () => {
+    expect(nextSponsorOrder([sponsor("a", 0), { ...sponsor("b", 7), hidden: true }])).toBe(8);
+  });
+});
+
+describe("sponsorOrderWrites", () => {
+  const current = [sponsor("a", 0, "main"), sponsor("b", 1), sponsor("c", 2), sponsor("d", 3)];
+
+  it("writes every order without the current list", () => {
+    expect(sponsorOrderWrites(["b", "a"])).toEqual([
+      { id: "b", fields: { order: 0 } },
+      { id: "a", fields: { order: 1 } },
+    ]);
+  });
+
+  it("writes only the orders that change", () => {
+    expect(sponsorOrderWrites(["a", "c", "b", "d"], current)).toEqual([
+      { id: "c", fields: { order: 1 } },
+      { id: "b", fields: { order: 2 } },
+    ]);
+    expect(sponsorOrderWrites(["a", "b", "c", "d"], current)).toEqual([]);
+  });
+
+  it("writes unknown ids", () => {
+    expect(sponsorOrderWrites(["a", "x"], [sponsor("a", 0)])).toEqual([{ id: "x", fields: { order: 1 } }]);
+  });
+
+  it("moves a sponsor into another tier with its order in the same write", () => {
+    // c dragged to the end of the main tier
+    expect(sponsorOrderWrites(["a", "c", "b", "d"], current, { id: "c", tier: "main" })).toEqual([
+      { id: "c", fields: { order: 1, tier: "main" } },
+      { id: "b", fields: { order: 2 } },
+    ]);
+  });
+
+  it("sets the tier even when the order stays", () => {
+    // b dragged to the end of main: same position in the full list
+    expect(sponsorOrderWrites(["a", "b", "c", "d"], current, { id: "b", tier: "main" })).toEqual([
+      { id: "b", fields: { tier: "main" } },
+    ]);
+  });
+
+  it("skips the tier when it doesn't change", () => {
+    expect(sponsorOrderWrites(["a", "b", "c", "d"], current, { id: "a", tier: "main" })).toEqual([]);
   });
 });

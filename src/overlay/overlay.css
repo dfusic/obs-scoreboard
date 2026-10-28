@@ -1011,3 +1011,24 @@ body[data-theme="classic"] .sponsors-single {
   opacity: var(--tr-logo, 0);
   transform: translate(-50%, -50%) scale(calc(0.7 + 0.3 * var(--tr-logo, 0)));
 }
+
+/* ---------- static mode ----------
+   A still thumbnail of one scene for the control page's galleries (static.html, see
+   static-main.tsx; it has no video). Every animation jumps to its end state: entry
+   animations (intro text, photo, crest) are "both", so they stay at their final frame;
+   looping ones (Semafor stripes, marquee) run once in 1ms and rest at their start, which
+   looks the same. The sponsor slide is made visible by SponsorRotation. Semafor's
+   backdrop-filter stays: it is what blurs the stripes, and a still page blurs once. */
+body.static .sem-band,
+body.static .marquee-track {
+  will-change: auto !important;
+}
+
+body.static *,
+body.static *::before,
+body.static *::after {
+  animation-delay: 0s !important;
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition: none !important;
+}

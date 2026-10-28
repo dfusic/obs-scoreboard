@@ -19,6 +19,9 @@ export const sponsorRef = (id: string) => doc(db, ...root, "sponsors", id);
 export const scenesCol = () => collection(db, ...root, "scenes");
 export const sceneRef = (type: string) => doc(db, ...root, "scenes", type);
 export const graphicsRef = () => doc(db, ...root, "settings", "graphics");
+/** Graphics drafts: `graphics` and `scene-{type}` (see GraphicsDraft in types.ts). */
+export const draftsCol = () => collection(db, ...root, "drafts");
+export const draftRef = (id: string) => doc(db, ...root, "drafts", id);
 
 /** onSnapshot error handler. A failed listener stops for good, so at least make it visible. */
 export const logSubscriptionError = (what: string) => (err: Error) =>

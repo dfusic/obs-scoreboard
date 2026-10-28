@@ -1,7 +1,9 @@
 import { useSubscription } from "@shared/react/hooks";
 import { useStore } from "@shared/react/store";
-import type { Player } from "@shared/types";
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { staleTeamStats } from "@shared/squad";
+import type { Player, TeamProfile } from "@shared/types";
+import type { SyncStatus } from "@shared/store/types";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { nameFromFileName, PHOTO_IMAGE, processImage } from "../images";
 import {
   Button,
@@ -11,6 +13,7 @@ import {
   hiddenFileInput,
   Hint,
   ICON,
+  SearchInput,
   Thumb,
   UploadButton,
   useImageUpload,
@@ -19,17 +22,34 @@ import {
 /** Photos are PNG cut-outs; other formats are accepted and converted. */
 const PHOTO_ACCEPT = "image/png,image/*";
 
-const photoSlot = cn(
-  "flex size-11 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-line-strong bg-well text-faint",
-  "hover:border-accent focus-within:border-accent",
-);
-const playerRow = "grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-2";
+/** Until the first status arrives, assume not in step (no stats repair yet). */
+const UNKNOWN_SYNC: SyncStatus = { connected: false, pendingWrites: true };
 
-/** A team's squad: add players (one by one or from photos), rename, replace photos, delete. */
-export function Roster({ teamId }: { teamId: string }) {
+/** Waits this long before repairing the counts: the players and team listeners can be a snapshot apart. */
+const STATS_REPAIR_DELAY_MS = 1000;
+
+/**
+ * A team's squad (the drawer's Squad tab): add players (one by one or from photos), search,
+ * rename, replace photos, delete. `players` comes from the drawer's subscription (null until
+ * its first snapshot).
+ */
+export function Roster({ team, players }: { team: TeamProfile; players: Player[] | null }) {
   const store = useStore();
-  const players = useSubscription<Player[]>((cb) => store.players.subscribe([teamId], cb), [], [store, teamId]);
+  const teamId = team.id;
+  const sync = useSubscription<SyncStatus>((cb) => store.sync.subscribe(cb), UNKNOWN_SYNC, [store]);
   const [status, setStatus] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  // Self-repair of the team's counts (null on older teams, or drifted), from the whole loaded
+  // squad. Only while in step with the server: offline the cache may hold part of the squad,
+  // and with pending writes another client's counts may still be on their way.
+  const stale = players && sync.connected && !sync.pendingWrites ? staleTeamStats(team, players) : null;
+  // Debounced, so counts that are only a snapshot behind aren't rewritten.
+  useEffect(() => {
+    if (!stale) return;
+    const timer = setTimeout(() => void store.teams.setStats(teamId, stale), STATS_REPAIR_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [store, teamId, stale?.playerCount, stale?.missingPhotos]);
 
   const addFromPhotos = async (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.currentTarget;
@@ -52,29 +72,48 @@ export function Roster({ teamId }: { teamId: string }) {
     input.value = "";
   };
 
+  const q = query.trim().toLowerCase();
+  const shown = (players ?? []).filter((p) => !q || p.name.toLowerCase().includes(q));
+
   return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="font-condensed text-xs font-bold tracking-[0.1em] text-soft uppercase">
-        Squad · {players.length} {players.length === 1 ? "player" : "players"}
-      </div>
-      <AddPlayerForm teamId={teamId} onStatus={setStatus} />
+    <div className="flex min-w-0 flex-col gap-3.5">
       <UploadButton accept={PHOTO_ACCEPT} multiple onChange={addFromPhotos}>
         Add players from photos
       </UploadButton>
+      <AddPlayerForm teamId={teamId} onStatus={setStatus} />
       {status && <Hint>{status}</Hint>}
-      <div className="flex flex-col gap-1.5">
-        {players.map((p) => (
-          <PlayerRow key={p.id} player={p} />
-        ))}
-      </div>
       <Hint>
-        Photos: PNG cut-outs with a transparent background work best. "Add players from photos" creates one player per
-        file, named after the file (e.g. <code>ivan_horvat.png</code> becomes Ivan Horvat). Click a photo to replace it;
-        names save when you leave the field.
+        One player per photo, named after the file (<code>ivan_horvat.png</code> becomes Ivan Horvat). PNG cut-outs with
+        a transparent background work best. Click a photo to replace it.
       </Hint>
+
+      {players === null ? (
+        <Hint>Loading squad…</Hint>
+      ) : players.length === 0 ? (
+        <div className="py-8 text-center font-condensed text-sm font-bold tracking-[0.06em] text-dim uppercase">
+          No players yet
+        </div>
+      ) : (
+        <>
+          <SearchInput label="Search squad" value={query} onChange={setQuery} />
+          {shown.length === 0 && <Hint>No player matches “{query.trim()}”.</Hint>}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(118px,1fr))] gap-2.5">
+            {shown.map((p) => (
+              <PlayerCard key={p.id} player={p} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
+const Silhouette = () => (
+  <svg viewBox="0 0 24 24" className="size-3/5" fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="8" r="4.2" />
+    <path d="M3.5 22c0-4.7 3.8-8.2 8.5-8.2s8.5 3.5 8.5 8.2z" />
+  </svg>
+);
 
 function AddPlayerForm({ teamId, onStatus }: { teamId: string; onStatus: (status: string | null) => void }) {
   const store = useStore();
@@ -109,18 +148,25 @@ function AddPlayerForm({ teamId, onStatus }: { teamId: string; onStatus: (status
   };
 
   return (
-    <form onSubmit={onSubmit} className={cn(playerRow, "mb-1.5 border-b border-line pb-3")}>
-      <label className={photoSlot} title="Photo (PNG)">
-        <Thumb url={previewUrl} className="size-full object-cover" />
+    <form onSubmit={onSubmit} className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-2">
+      <label
+        className={cn(
+          "flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-line-strong bg-well text-faint",
+          "hover:border-accent focus-within:border-accent",
+        )}
+        title="Photo (PNG)"
+      >
+        {previewUrl ? <Thumb url={previewUrl} className="size-full object-cover" /> : <Silhouette />}
         <input
           name="photo"
           type="file"
           accept={PHOTO_ACCEPT}
+          aria-label="Photo"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           className={hiddenFileInput}
         />
       </label>
-      <input name="name" type="text" placeholder="Full name" aria-label="Full name" required />
+      <input name="name" type="text" placeholder="Full name" aria-label="New player's full name" required />
       <Button type="submit" variant="small" className="h-9">
         Add player
       </Button>
@@ -128,31 +174,59 @@ function AddPlayerForm({ teamId, onStatus }: { teamId: string; onStatus: (status
   );
 }
 
-function PlayerRow({ player }: { player: Player }) {
+function PlayerCard({ player }: { player: Player }) {
   const store = useStore();
-  const upload = useImageUpload(PHOTO_IMAGE, (photo) => store.players.update(player.id, { photo }));
+  const upload = useImageUpload(PHOTO_IMAGE, (photo) => store.players.update(player, { photo }));
+  // A second click while the delete is on its way does nothing (offline it settles only on reconnect).
+  const deleting = useRef(false);
+  const remove = () => {
+    if (deleting.current || !confirm(`Delete ${player.name}?`)) return;
+    deleting.current = true;
+    void store.players.remove(player).finally(() => {
+      deleting.current = false;
+    });
+  };
   return (
-    <div className={playerRow}>
-      <label className={photoSlot} title="Replace photo (PNG)">
-        <Thumb url={player.photo} className="size-full object-cover" />
-        <input type="file" accept={PHOTO_ACCEPT} onChange={upload.onChange} className={hiddenFileInput} />
+    <div className="group relative flex flex-col overflow-hidden rounded-md border border-line bg-well">
+      <label
+        className="relative flex aspect-[4/5] cursor-pointer items-end justify-center overflow-hidden bg-control/40 text-faint hover:bg-control focus-within:outline-2 focus-within:outline-accent"
+        title={player.photo ? "Replace photo (PNG)" : "Add photo (PNG)"}
+      >
+        {player.photo ? (
+          <Thumb url={player.photo} className="size-full object-contain object-bottom" />
+        ) : (
+          <div className="flex size-full items-center justify-center">
+            <Silhouette />
+          </div>
+        )}
+        {!player.photo && (
+          <span className="absolute top-1.5 left-1.5 font-condensed text-[10px] font-bold tracking-[0.08em] text-warning uppercase">
+            No photo
+          </span>
+        )}
+        <input type="file" accept={PHOTO_ACCEPT} aria-label={`Photo of ${player.name}`} onChange={upload.onChange}
+          className={hiddenFileInput} />
       </label>
+      <Button
+        variant="ghost"
+        className={cn(ICON, "absolute top-1 right-1 size-7 border-transparent bg-panel/80 text-base hover:border-danger hover:bg-panel hover:text-danger")}
+        aria-label={`Delete ${player.name}`}
+        onClick={remove}
+      >
+        &times;
+      </Button>
       <CommitInput
         type="text"
         aria-label="Full name"
         value={player.name}
-        onCommit={(v) => v.trim() && void store.players.update(player.id, { name: v.trim() })}
+        onCommit={(v) => {
+          if (!v.trim()) return false; // a player needs a name: the field goes back
+          void store.players.update(player, { name: v.trim() });
+        }}
+        className="h-8 rounded-none border-0 border-t border-line bg-transparent px-2 text-[13px]"
       />
-      <Button
-        variant="ghost"
-        className={ICON}
-        aria-label="Delete player"
-        onClick={() => confirm(`Delete ${player.name}?`) && void store.players.remove(player.id)}
-      >
-        &times;
-      </Button>
       {upload.status && (
-        <div className="col-span-full">
+        <div className="px-2 pb-1.5">
           <ErrorText>{upload.status}</ErrorText>
         </div>
       )}
