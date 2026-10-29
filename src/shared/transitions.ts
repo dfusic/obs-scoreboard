@@ -14,6 +14,8 @@
  * 1/30 s, so a transition looks the same on any screen and frame rate. To add a
  * transition, add it to TRANSITIONS; a cover also needs markup in Transition.tsx and CSS.
  */
+import type { SceneType, SchemeColors, Side, TeamProfile } from "./types";
+
 export type TransitionKind = "cut" | "fade" | "popup" | "cover";
 
 export interface Transition {
@@ -47,6 +49,24 @@ export const DEFAULT_TRANSITION = "fade";
 /** The transition with this id; the default (Fade) for an unknown id. */
 export function transition(id: unknown): Transition {
   return TRANSITIONS.find((t) => t.id === id) ?? TRANSITIONS.find((t) => t.id === DEFAULT_TRANSITION)!;
+}
+
+/** Scenes about one team's player or squad: going into one of the away team's, the curtain wears its colours. */
+const TEAM_SCENES: ReadonlySet<SceneType> = new Set(["presentation", "playerCard", "lineup"]);
+
+/**
+ * A cover curtain's two colours (`--c1` / `--c2`): the colour scheme's highlight and
+ * background (dark without one), or, going into an away team's intro / player card /
+ * lineup, that team's primary and secondary colours.
+ */
+export function curtainColors(
+  scheme: SchemeColors,
+  scene: SceneType,
+  side: Side,
+  team: Pick<TeamProfile, "primaryColor" | "secondaryColor"> | null,
+): { c1: string; c2: string } {
+  if (side === "away" && team && TEAM_SCENES.has(scene)) return { c1: team.primaryColor, c2: team.secondaryColor };
+  return { c1: scheme.highlight, c2: scheme.background ?? "#0a0c10" };
 }
 
 export const FPS = 30;

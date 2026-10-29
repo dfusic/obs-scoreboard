@@ -1,6 +1,6 @@
 import { APP_ENV } from "@shared/env";
 import { MatchSetupPage } from "./match/MatchSetupPage";
-import { OutputWindowProvider, setOutputFullscreen, useOutputWindow, type OutputWindow } from "./outputWindow";
+import { overlayUrl, OutputWindowProvider, setOutputFullscreen, useOutputWindow, type OutputWindow } from "./outputWindow";
 import { useSubscription } from "@shared/react/hooks";
 import { LiveDataProvider, useStore } from "@shared/react/store";
 import type { AppUser, SyncStatus } from "@shared/store";
@@ -17,7 +17,6 @@ import {
 import { GraphicsDraftProvider, GraphicsPendingLink } from "./graphics/draftContext";
 import { GraphicsPage } from "./graphics/GraphicsPage";
 import { LivePage } from "./live/LivePage";
-import { overlayUrl } from "./OutputPreview";
 import { SponsorsPage } from "./sponsors/SponsorsPage";
 import { TeamsPage } from "./teams/TeamsPage";
 import { TeamsProvider } from "./teamsContext";
@@ -107,22 +106,22 @@ const icon = (children: ReactNode) => (
 
 const PAGES: { id: Page; label: string; icon: ReactNode }[] = [
   {
-    id: "match",
-    label: "Match setup",
-    icon: icon(
-      <>
-        <path d="M9 11l3 3L22 4" />
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-      </>,
-    ),
-  },
-  {
     id: "live",
     label: "Live",
     icon: icon(
       <>
         <circle cx="12" cy="12" r="10" />
         <polygon points="10 8 16 12 10 16 10 8" />
+      </>,
+    ),
+  },
+  {
+    id: "match",
+    label: "Match setup",
+    icon: icon(
+      <>
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </>,
     ),
   },
@@ -163,7 +162,7 @@ const PAGES: { id: Page; label: string; icon: ReactNode }[] = [
 
 /** The sidebar's groups, in order. */
 const NAV_GROUPS: { title: string; pages: Page[] }[] = [
-  { title: "Match day", pages: ["match", "live"] },
+  { title: "Match day", pages: ["live", "match"] },
   { title: "Library", pages: ["teams", "sponsors"] },
   { title: "Design", pages: ["graphics"] },
 ];

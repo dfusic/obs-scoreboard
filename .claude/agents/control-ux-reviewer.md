@@ -27,7 +27,7 @@ The operator runs a live broadcast, often alone, under time pressure. A wrong cl
 ## The flow model: draft, saved, on air
 
 Every control action is in one of three states, and the operator must always know which:
-- **Draft**: local only, shown in the preview iframe (`OutputPreview.tsx`, `preview-scene` / `preview-graphics` messages), not saved.
+- **Draft**: local only, shown in the preview (`ScenePreview.tsx`, fed `useShownData()`), not saved.
 - **Saved**: stored, but not yet on air.
 - **On air**: what the output page shows now, changed only by an explicit take on the Live page (`setProgram(takeScene(...))`, `recordGoal`, `endHalf`, the intro steps).
 

@@ -9,7 +9,7 @@ The operator runs a live broadcast, often alone, under time pressure. A wrong cl
 ## The flow model you are responsible for
 
 Every control action falls into one of three states, and the operator must always know which:
-- **Draft**: local only, visible in the preview iframe (`OutputPreview.tsx`, `preview-scene` / `preview-graphics` messages), not saved.
+- **Draft**: local only, visible in the preview (`ScenePreview.tsx`, fed `useShownData()`), not saved.
 - **Saved**: stored in Firestore, but not yet on air.
 - **On air**: what the output page shows now, changed only by an explicit take on the Live page (`setProgram(takeScene(...))`, `recordGoal`, `endHalf`, the intro steps).
 

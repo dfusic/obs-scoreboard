@@ -1,6 +1,7 @@
 import { applyDraft, diffDraft, draftChanges, isEmptyDraft, samePatch, summarizeDraft } from "@shared/graphicsDraft";
+import type { LiveData } from "@shared/liveFeed";
 import { useLiveData, useStore } from "@shared/react/store";
-import { EMPTY_DRAFT, SCENE_TYPES, type GraphicsDraft, type OnAirGraphics, type SceneConfigs } from "@shared/types";
+import { EMPTY_DRAFT, SCENE_TYPES, type GraphicsDraft, type OnAirGraphics } from "@shared/types";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 /**
@@ -31,8 +32,6 @@ export interface GraphicsDraftState {
   /** Everything shown that isn't on air: what Put on air changes. */
   toAir: GraphicsDraft;
   toAirSummary: string;
-  /** The shown configs of the scenes in `toAir`, for a preview's `preview-scenes`. */
-  toAirScenes: Partial<SceneConfigs>;
   /** Applies a patch to the unsaved edits (a field set back to its saved value drops out). */
   edit(patch: GraphicsDraft): void;
   /** Drops the unsaved edits. */
@@ -135,9 +134,6 @@ export function GraphicsDraftProvider({
       unsavedSummary: summarizeDraft(unsavedChanges),
       toAir,
       toAirSummary: summarizeDraft(toAir),
-      toAirScenes: Object.fromEntries(
-        SCENE_TYPES.filter((type) => toAir.scenes[type]).map((type) => [type, shown.scenes[type]]),
-      ),
       edit: (patch) =>
         setLocal((prev) => {
           const base = latest.current.saved;
@@ -178,6 +174,13 @@ export function GraphicsDraftProvider({
   }, [unsaved]);
 
   return <GraphicsDraftContext.Provider value={value}>{children}</GraphicsDraftContext.Provider>;
+}
+
+/** The live data with the look and scene configs as the Graphics page shows them (`shown`), for its previews. */
+export function useShownData(): LiveData {
+  const live = useLiveData();
+  const { shown } = useGraphicsDraft();
+  return useMemo(() => ({ ...live, graphics: shown.graphics, scenes: shown.scenes }), [live, shown]);
 }
 
 /** For the Live page's on-air strip: saved graphics changes that aren't on air yet. */

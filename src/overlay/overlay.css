@@ -560,6 +560,17 @@ body[data-theme="semafor"] .intro-default-bg {
   will-change: transform;
 }
 
+/* Every scene stays mounted, so a hidden marquee would keep scrolling and come on air
+   mid-phrase. Hidden scenes have no data-tr: no animation, so it restarts from the
+   first letter whenever the scene is shown. It also waits behind a cover curtain
+   (cover-in until the curtain has opened), so the first letters aren't gone by the
+   reveal. Fade, popup and cut start it at once. A new take of the scene already on air
+   remounts it (keyed by the take, scenes.tsx). */
+.scene:not([data-tr]) .marquee-track,
+.scene[data-tr="cover-in"] .marquee-track {
+  animation: none;
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
@@ -603,59 +614,206 @@ body[data-theme="semafor"] .intro-default-bg {
   color: var(--accent);
 }
 
-/* team name next to the lineup crest */
-
-.feature-name {
-  font-size: 5vw;
-  line-height: 1;
-  text-transform: uppercase;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .score-line-sep {
   color: var(--accent);
   margin: 0 0.4vw;
 }
 
-/* lineup */
+/* lineup: no card, straight over the scene background. Club crest, name and city on the
+   left; players by surname on the right, scrolling upward when they don't fit. Sized in
+   vh like the intro (the reference is 16:9), positioned in %. */
 
-.lineup-header {
+.lineup {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  text-shadow: 0 0.12vw 0.9vw rgba(0, 0, 0, 0.55);
+}
+
+/* A light scrim keeps white text readable over bright video or scheme colours. */
+.lineup-default-bg {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.42) 55%, rgba(0, 0, 0, 0.42));
+}
+
+/* Semafor: the whole frame is the blurred panel, as for the intro. */
+body[data-theme="semafor"] .lineup-default-bg {
+  background: none;
+  backdrop-filter: blur(1.6vw) brightness(0.22);
+}
+
+.lineup-club {
+  position: absolute;
+  left: 1%;
+  width: 44%;
+  top: 20%;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 2vw;
-  margin-bottom: 1.6vw;
+  text-align: center;
 }
 
-.lineup-header .card-title {
-  font-size: 2.4vw;
-}
-
-.lineup-logo {
-  width: 7vw;
-  height: 7vw;
+.lineup-crest {
+  width: 40vh;
+  height: 40vh;
+  max-width: 100%;
   object-fit: contain;
+  filter: drop-shadow(0 0.3vw 1.2vw rgba(0, 0, 0, 0.45));
+}
+
+.lineup-club-name {
+  max-width: 100%;
+  margin-top: 3.5vh;
+  font-size: 10.5vh;
+  font-weight: 700;
+  /* Room above the caps for accents (Č); the font is shrunk to fit the width. */
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  font-variation-settings: "opsz" 72;
+}
+
+.lineup-city {
+  max-width: 100%;
+  margin-top: 0.8vh;
+  font-size: 3.6vh;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.3em;
+  /* Letter-spacing trails the last letter: balance it so the city stays centred. */
+  padding-left: 0.3em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.lineup-players {
+  position: absolute;
+  left: 50%;
+  right: 4%;
+  top: 9%;
+  bottom: 9%;
+  display: flex;
+  flex-direction: column;
+  padding-left: 2.5%;
+}
+
+/* Team-colour bar along the list. */
+.lineup-players::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0.25vw;
+  background: linear-gradient(var(--team-primary, var(--accent)), var(--team-secondary, var(--accent)));
+  box-shadow: 0 0 0.8vw rgba(0, 0, 0, 0.35);
+}
+
+.lineup-title {
   flex-shrink: 0;
+  margin-bottom: 2vh;
+  font-size: 3.2vh;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lineup-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Scrolling: start at the top and fade the list in and out at the edges. */
+.lineup-viewport.is-scrolling {
+  justify-content: flex-start;
+  -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
+}
+
+/* Static thumbnail of a long list: top of the list, fading out at the bottom. */
+.lineup-viewport.is-clipped {
+  justify-content: flex-start;
+  -webkit-mask-image: linear-gradient(#000 85%, transparent);
+  mask-image: linear-gradient(#000 85%, transparent);
+}
+
+.lineup-track {
+  flex-shrink: 0;
+}
+
+/* Two identical groups (gap, then the list): moving the track by one group (50%) loops
+   seamlessly. The gap sits in the top fade, so the first player starts fully visible. */
+.is-scrolling .lineup-track {
+  animation: lineup-scroll var(--lineup-duration, 20s) linear 1.5s infinite;
+  will-change: transform;
+}
+
+.is-scrolling .lineup-group {
+  padding-top: 10vh;
+}
+
+/* Hidden scenes have no data-tr: no animation, so the list restarts from the first player
+   whenever the scene is shown; behind a cover curtain it waits until the curtain has
+   opened (as the marquee). */
+.scene:not([data-tr]) .lineup-track,
+.scene[data-tr="cover-in"] .lineup-track {
+  animation: none;
+}
+
+@keyframes lineup-scroll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
 }
 
 .lineup-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  columns: 3;
-  column-gap: 3vw;
-  font-weight: 600;
-  font-size: 1.9vw;
-  line-height: 1.45;
+  font-size: 7.2vh;
+  font-weight: 700;
+  /* Tight, with room above the caps for accents (Č, Š). */
+  line-height: 1.08;
   text-transform: uppercase;
+  font-variation-settings: "opsz" 72;
+  /* Keeps the first and last name's negative margins (below) inside the list. */
+  display: flow-root;
 }
 
+/* Long names end in an ellipsis (overflow: hidden, which every browser ellipsizes). The
+   padding gives accented capitals (Č, Ć, Š) room inside the clip, and negative margins
+   take it back, so the rows keep the tight line height and the list its height.
+   (Neighbouring margins collapse into one, so each row takes back both paddings on top.) */
 .lineup-list li {
-  break-inside: avoid;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-block: 0.18em;
+  margin-top: -0.36em;
+}
+
+.lineup-list li:first-child {
+  margin-top: -0.18em;
+}
+
+.lineup-list li:last-child {
+  margin-bottom: -0.18em;
 }
 
 
@@ -1013,8 +1171,8 @@ body[data-theme="classic"] .sponsors-single {
 }
 
 /* ---------- static mode ----------
-   A still thumbnail of one scene for the control page's galleries (static.html, see
-   static-main.tsx; it has no video). Every animation jumps to its end state: entry
+   A still thumbnail of one scene for the control page's galleries (ScenePreview with
+   `still`; its video rests on one frame). Every animation jumps to its end state: entry
    animations (intro text, photo, crest) are "both", so they stay at their final frame;
    looping ones (Semafor stripes, marquee) run once in 1ms and rest at their start, which
    looks the same. The sponsor slide is made visible by SponsorRotation. Semafor's

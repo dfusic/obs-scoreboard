@@ -30,7 +30,7 @@ Load-bearing decisions, don't break them without a deliberate redesign:
 - **One live subscription per page**, scoped to what the match references.
 - **Schema evolution through `normalize.ts`** over defaults in `types.ts` / `templates.ts`; match fields via `updateMatch()` with dotted paths; `reset()` overwrites the doc.
 - **Images as data URLs on their own docs** (no Cloud Storage, free plan), each doc under 1 MiB; never on the match doc.
-- **Preview without going on air:** the control page embeds the real overlay in an iframe and overrides it with `?scene=` / `postMessage` (`preview-scene`, `preview-graphics`).
+- **Preview without going on air:** the control page renders the overlay's own `OverlayView` into a scaled iframe (`ScenePreview.tsx`), passing the scene and the draft data as props (no messages).
 - **Environments by Vite mode** (development = emulators `demo-scoreboard`, staging, production); branch flow feature → `staging` → `main`.
 
 ## Known gaps and pending work

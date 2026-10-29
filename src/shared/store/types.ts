@@ -1,5 +1,6 @@
 import type {
   ClockState,
+  ClockStop,
   GoalEvent,
   GraphicsDraft,
   GraphicsSettings,
@@ -68,9 +69,11 @@ export interface MatchApi {
   subscribe(onChange: (match: MatchState) => void): Unsubscribe;
   /** Creates the match with initial state if there is none yet. Called once by the control page. */
   ensureInitialized(): Promise<void>;
-  /** Starts over, keeping the pre-match setup (teams, lineups, away players). */
+  /** Starts over, keeping the pre-match setup (teams, lineups, away players, clock stop). */
   reset(current: MatchState): Promise<void>;
   updateClock(clock: ClockState): Promise<void>;
+  /** Turns the clock stop on/off or sets a half's stop time; only the given fields change. */
+  setClockStop(fields: Partial<ClockStop>): Promise<void>;
   /** Picks a side's team; its lineup is cleared since it belonged to another squad. */
   setTeam(side: Side, teamId: string | null): Promise<void>;
   setLineup(side: Side, playerIds: string[]): Promise<void>;

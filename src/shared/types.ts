@@ -9,6 +9,19 @@ export interface ClockState {
   accumulatedMs: number;
 }
 
+/**
+ * Where the shown clock stops in each half (e.g. 45:00 / 90:00). Every client clamps the
+ * time it shows to the current half's value (clockStopMs in clock.ts); the stored clock
+ * keeps counting, so turning it off or raising it continues from the real time.
+ */
+export interface ClockStop {
+  enabled: boolean;
+  half1Ms: number;
+  half2Ms: number;
+}
+
+export const DEFAULT_CLOCK_STOP: ClockStop = { enabled: false, half1Ms: 45 * 60_000, half2Ms: 90 * 60_000 };
+
 /** A club, stored in workspaces/{ws}/teams/{id}. Logo is an inline PNG data URL (see image.ts). */
 export interface TeamProfile {
   id: string;
@@ -143,8 +156,13 @@ export type Half = 1 | 2;
 export interface GoalEvent {
   side: Side;
   playerId: string | null;
-  /** Match clock when the goal was recorded. */
+  /** Match clock when the goal was recorded (as shown, so held at a clock stop). */
   elapsedMs: number;
+  /**
+   * Date.now() when it was recorded. Keeps two goals at the same match time (a held or
+   * paused clock) distinct, so `arrayUnion` doesn't merge them. Missing on older goals.
+   */
+  recordedAtMs?: number;
 }
 
 /** The live match, stored in workspaces/{ws}/live/match. */
@@ -161,6 +179,8 @@ export interface MatchState {
   program: ProgramState;
   /** Half being played: labels the scoreboard. */
   half: Half;
+  /** Optional stop of the shown clock per half; kept by a full reset. */
+  clockStop: ClockStop;
 }
 
 export function createInitialProgram(): ProgramState {
@@ -177,6 +197,7 @@ export function createInitialMatchState(): MatchState {
     goals: [],
     program: createInitialProgram(),
     half: 1,
+    clockStop: { ...DEFAULT_CLOCK_STOP },
   };
 }
 

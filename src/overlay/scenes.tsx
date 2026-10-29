@@ -1,11 +1,12 @@
-import { formatClock } from "@shared/clock";
+import { clockStopMs, formatClock } from "@shared/clock";
 import { matchPlayers, type LiveData } from "@shared/liveFeed";
+import { lineupLabels } from "@shared/lineup";
 import { goalMinute } from "@shared/program";
 import { gridColumns, sponsorsByTier, sponsorSlide } from "@shared/sponsors";
 import { theme } from "@shared/themes";
 import { FPS } from "@shared/transitions";
 import { useTicking } from "@shared/react/hooks";
-import { useStaticMode } from "./static";
+import { useOverlayDocument, useOverlayWindow, useStaticMode } from "./context";
 import type { ClockState, Player, SceneConfig, SceneType, SchemeColors, Side, Sponsor, TeamProfile } from "@shared/types";
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
@@ -13,6 +14,11 @@ import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties,
 export interface SceneTarget {
   side: Side;
   player: Player | null;
+  /**
+   * The take it went on air with (takeKey() in shared/program.ts). Content that runs on
+   * its own (marquee, lineup scroll) is keyed by it, so every new take starts it over.
+   */
+  take: string;
 }
 
 interface SceneProps {
@@ -79,20 +85,25 @@ function fitLines(box: HTMLElement): void {
   for (const line of box.children as HTMLCollectionOf<HTMLElement>) {
     line.style.fontSize = "";
     const overflow = line.scrollWidth / box.clientWidth;
-    if (overflow > 1) line.style.fontSize = `${parseFloat(getComputedStyle(line).fontSize) / overflow}px`;
+    if (overflow <= 1) continue;
+    // The line's own window: in a control-page preview it lives in an iframe.
+    const { fontSize } = (line.ownerDocument.defaultView ?? window).getComputedStyle(line);
+    line.style.fontSize = `${parseFloat(fontSize) / overflow}px`;
   }
 }
 
 function IntroName({ name }: { name: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [first, last] = splitName(name);
+  const doc = useOverlayDocument();
+  const win = useOverlayWindow();
   useLayoutEffect(() => {
     const fit = () => ref.current && fitLines(ref.current);
     fit();
-    void document.fonts.ready.then(fit);
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, [first, last]);
+    void doc.fonts.ready.then(fit);
+    win.addEventListener("resize", fit);
+    return () => win.removeEventListener("resize", fit);
+  }, [first, last, doc, win]);
   return (
     <div className="intro-name" ref={ref}>
       {first && <span className="intro-first">{first}</span>}
@@ -145,20 +156,22 @@ const GOAL_MARQUEE_TEXT = "GOOOOOL";
 function Marquee({ title, subtitle }: { title: string; subtitle: string }) {
   const phraseRef = useRef<HTMLSpanElement>(null);
   const [layout, setLayout] = useState({ repeats: 1, durationS: 10 });
+  const doc = useOverlayDocument();
+  const win = useOverlayWindow();
 
   useLayoutEffect(() => {
     const measure = () => {
       const width = phraseRef.current?.offsetWidth ?? 0;
       if (!width) return;
-      const repeats = Math.max(1, Math.ceil(window.innerWidth / width));
-      const durationS = (repeats * width) / (window.innerWidth * MARQUEE_SPEED);
+      const repeats = Math.max(1, Math.ceil(win.innerWidth / width));
+      const durationS = (repeats * width) / (win.innerWidth * MARQUEE_SPEED);
       setLayout((prev) => (prev.repeats === repeats && Math.abs(prev.durationS - durationS) < 0.01 ? prev : { repeats, durationS }));
     };
     measure();
-    void document.fonts.ready.then(measure);
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [title, subtitle]);
+    void doc.fonts.ready.then(measure);
+    win.addEventListener("resize", measure);
+    return () => win.removeEventListener("resize", measure);
+  }, [title, subtitle, doc, win]);
 
   const phrase = (key: number, ref?: typeof phraseRef) => (
     <span key={key} ref={ref} className="marquee-phrase">
@@ -193,10 +206,22 @@ function Marquee({ title, subtitle }: { title: string; subtitle: string }) {
  * Clock ticks every TICK_MS, except on a still thumbnail (static mode): computed once, on
  * purpose. A gallery thumbnail is a still; it doesn't follow the running clock.
  */
-const useClockText = (clock: ClockState) => useTicking((now) => formatClock(clock, now), useStaticMode() ? null : undefined);
+const useClockText = (clock: ClockState, stopAtMs: number | null) =>
+  useTicking((now) => formatClock(clock, now, stopAtMs), useStaticMode() ? null : undefined);
 
-const ScoreboardClock = memo(function ScoreboardClock({ clock }: { clock: ClockState }) {
-  const [minutes, seconds] = useClockText(clock).split(":");
+/** The match clock and its stop in force (clockStopMs), where the shown time holds. */
+interface ClockProps {
+  clock: ClockState;
+  stopAtMs: number | null;
+}
+
+const clockProps = (data: LiveData): ClockProps => ({
+  clock: data.match.clock,
+  stopAtMs: clockStopMs(data.match.clockStop, data.match.half),
+});
+
+const ScoreboardClock = memo(function ScoreboardClock({ clock, stopAtMs }: ClockProps) {
+  const [minutes, seconds] = useClockText(clock, stopAtMs).split(":");
   return (
     <div className="clock">
       <span>{minutes}</span>
@@ -216,8 +241,8 @@ function scoreboardVars(colors: SchemeColors): CSSProperties {
   } as CSSProperties;
 }
 
-const BarClock = memo(function BarClock({ clock }: { clock: ClockState }) {
-  return <div className="bar-clock">{useClockText(clock)}</div>;
+const BarClock = memo(function BarClock({ clock, stopAtMs }: ClockProps) {
+  return <div className="bar-clock">{useClockText(clock, stopAtMs)}</div>;
 });
 
 function BarSide({ data, side }: { data: LiveData; side: Side }) {
@@ -296,8 +321,8 @@ export const SemaforStripes = memo(function SemaforStripes({ colors }: { colors:
   );
 });
 
-const SemaforClock = memo(function SemaforClock({ clock }: { clock: ClockState }) {
-  const [minutes, seconds] = useClockText(clock).split(":");
+const SemaforClock = memo(function SemaforClock({ clock, stopAtMs }: ClockProps) {
+  const [minutes, seconds] = useClockText(clock, stopAtMs).split(":");
   return (
     <div className="sem-clock">
       <span>{minutes}</span>
@@ -353,7 +378,7 @@ function SemaforScoreboard({ data, config }: SceneProps) {
     <div className="sb-semafor" style={style}>
       <div className="sem-panel">
         {name("home")}
-        <SemaforClock clock={data.match.clock} />
+        <SemaforClock {...clockProps(data)} />
         {name("away")}
         <div className="sem-rule" />
         {crest("home")}
@@ -392,7 +417,7 @@ function ScoreboardScene(props: SceneProps) {
       <div className="sb-bar" style={scoreboardVars(colors)}>
         <BarSide data={data} side="home" />
         <div className="bar-center">
-          <BarClock clock={data.match.clock} />
+          <BarClock {...clockProps(data)} />
           <div className="bar-rule" />
           <div className="bar-half">{data.match.half === 1 ? "1st half" : "2nd half"}</div>
         </div>
@@ -402,7 +427,7 @@ function ScoreboardScene(props: SceneProps) {
   }
   return (
     <div style={scoreboardVars(colors)}>
-      <ScoreboardClock clock={data.match.clock} />
+      <ScoreboardClock {...clockProps(data)} />
       <img className="logo logo-home" src={data.teams.home?.logo ?? undefined} alt="" />
       <img className="logo logo-away" src={data.teams.away?.logo ?? undefined} alt="" />
       <div className="score">
@@ -544,12 +569,126 @@ function SponsorRotation({ data, config }: SceneProps) {
   );
 }
 
+/** Lineup scroll speed, in screen heights per second. */
+const LINEUP_SCROLL_SPEED = 0.05;
+
+/** Shrinks a one-line element's font until its text fits its width (long club names). */
+function shrinkToWidth(el: HTMLElement): void {
+  el.style.fontSize = "";
+  const overflow = el.scrollWidth / el.clientWidth;
+  const view = el.ownerDocument.defaultView;
+  if (overflow > 1 && view) el.style.fontSize = `${parseFloat(view.getComputedStyle(el).fontSize) / overflow}px`;
+}
+
+/** The lineup's club column: crest, name (shrunk to fit on one line) and city. */
+function LineupClub({ team, side }: { team: TeamProfile | null; side: Side }) {
+  const win = useOverlayWindow();
+  const doc = useOverlayDocument();
+  const nameRef = useRef<HTMLDivElement>(null);
+  const name = teamName(team, side);
+  useLayoutEffect(() => {
+    const fit = () => nameRef.current && shrinkToWidth(nameRef.current);
+    fit();
+    void doc.fonts.ready.then(fit);
+    win.addEventListener("resize", fit);
+    return () => win.removeEventListener("resize", fit);
+  }, [name, win, doc]);
+  return (
+    <div className="lineup-club">
+      <Logo team={team} className="lineup-crest" />
+      <div className="lineup-club-name" ref={nameRef}>
+        {name}
+      </div>
+      {team?.city && <div className="lineup-city">{team.city}</div>}
+    </div>
+  );
+}
+
+/**
+ * The lineup's player list. When it is taller than its area it scrolls upward on a
+ * seamless loop: the track holds two identical groups (each a gap, then the list) and
+ * moves by one group (50%) per cycle, with the duration from the measured height so the
+ * speed stays LINEUP_SCROLL_SPEED. A list that fits stays still, centred, with no copy.
+ * A static thumbnail shows the top of the list.
+ */
+function LineupList({ items }: { items: { id: string; label: string }[] }) {
+  const win = useOverlayWindow();
+  const doc = useOverlayDocument();
+  const isStatic = useStaticMode();
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
+  const [layout, setLayout] = useState({ overflow: false, durationS: 20 });
+  const scrolling = layout.overflow && !isStatic;
+  const contentKey = items.map((p) => p.label).join("\n");
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const viewport = viewportRef.current;
+      const group = groupRef.current;
+      const list = listRef.current;
+      if (!viewport || !group || !list || !viewport.clientHeight) return;
+      const overflow = list.offsetHeight > viewport.clientHeight + 1;
+      const durationS = group.offsetHeight / (win.innerHeight * LINEUP_SCROLL_SPEED);
+      setLayout((prev) =>
+        prev.overflow === overflow && Math.abs(prev.durationS - durationS) < 0.01 ? prev : { overflow, durationS },
+      );
+    };
+    measure();
+    void doc.fonts.ready.then(measure);
+    win.addEventListener("resize", measure);
+    return () => win.removeEventListener("resize", measure);
+  }, [contentKey, scrolling, win, doc]);
+
+  const group = (copy: number) => (
+    <div className="lineup-group" ref={copy === 0 ? groupRef : undefined} aria-hidden={copy > 0 || undefined}>
+      <ol className="lineup-list" ref={copy === 0 ? listRef : undefined}>
+        {items.map((p) => (
+          <li key={p.id}>{p.label}</li>
+        ))}
+      </ol>
+    </div>
+  );
+
+  const state = scrolling ? " is-scrolling" : layout.overflow ? " is-clipped" : "";
+  return (
+    <div className={`lineup-viewport${state}`} ref={viewportRef}>
+      <div className="lineup-track" style={{ "--lineup-duration": `${layout.durationS}s` } as CSSProperties}>
+        {group(0)}
+        {scrolling && group(1)}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Lineup: over the scene background, the club's crest, name and city on the left, and the
+ * players by surname (lineupLabels) on the right, scrolling through when they don't fit.
+ * The scene title (e.g. "Starting lineup") is a small accent label above the list. On
+ * Semafor without a scene image, the whole frame is the blurred panel, like the intro.
+ */
+function LineupScene({ data, config, target }: SceneProps) {
+  const team = data.teams[target.side];
+  const players = matchPlayers(data, target.side);
+  const labels = lineupLabels(players.map((p) => p.name));
+  const items = players.map((p, i) => ({ id: p.id, label: labels[i] }));
+  return (
+    <div className={config.background ? "lineup" : "lineup lineup-default-bg"} style={teamVars(team)}>
+      <LineupClub team={team} side={target.side} />
+      <div className="lineup-players">
+        {config.title && <div className="lineup-title">{config.title}</div>}
+        <LineupList key={target.take} items={items} />
+      </div>
+    </div>
+  );
+}
+
 export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
   scoreboard: ScoreboardScene,
 
-  welcome: ({ data, config }) =>
+  welcome: ({ data, config, target }) =>
     config.layout === "largeText" ? (
-      <Marquee title={config.title} subtitle={config.subtitle} />
+      <Marquee key={target.take} title={config.title} subtitle={config.subtitle} />
     ) : (
       <div className="card welcome">
         <Header config={config} />
@@ -566,9 +705,9 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
   // Taken by hand the moment the ball goes in, before the score is updated: not about one
   // team or player, so the score updates live on air while the operator records the goal.
   // Classic shows the cry instead, scrolling in screen-high letters like the large-text welcome.
-  goal: ({ data, config }) =>
+  goal: ({ data, config, target }) =>
     theme(data.graphics.theme).id === "classic" ? (
-      <Marquee title={GOAL_MARQUEE_TEXT} subtitle={config.subtitle} />
+      <Marquee key={target.take} title={GOAL_MARQUEE_TEXT} subtitle={config.subtitle} />
     ) : (
       <div className="card goal">
         <Header config={config} />
@@ -587,25 +726,7 @@ export const SCENES: Record<SceneType, (props: SceneProps) => ReactNode> = {
   // The same design as the intro, for the player taken (e.g. the latest scorer).
   playerCard: PlayerIntro,
 
-  lineup: ({ data, config, target }) => {
-    const team = data.teams[target.side];
-    return (
-      <div className="card lineup" style={teamVars(team)}>
-        <div className="lineup-header">
-          <Logo team={team} className="lineup-logo" />
-          <div>
-            <Header config={config} />
-            <div className="feature-name">{teamName(team, target.side)}</div>
-          </div>
-        </div>
-        <ol className="lineup-list">
-          {matchPlayers(data, target.side).map((p) => (
-            <li key={p.id}>{p.name}</li>
-          ))}
-        </ol>
-      </div>
-    );
-  },
+  lineup: LineupScene,
 
   halftime: ResultScene,
   fulltime: ResultScene,

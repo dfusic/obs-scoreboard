@@ -50,8 +50,15 @@ export function normalizeMatch(data: Partial<MatchState> | undefined): MatchStat
     goals: Array.isArray(data?.goals) ? data.goals.filter((g) => isSide(g?.side)) : [],
     program: SCENE_TYPES.includes(program.scene) ? program : initial.program,
     half: data?.half === 2 ? 2 : 1,
+    clockStop: {
+      enabled: typeof data?.clockStop?.enabled === "boolean" ? data.clockStop.enabled : initial.clockStop.enabled,
+      half1Ms: clockMs(data?.clockStop?.half1Ms) ?? initial.clockStop.half1Ms,
+      half2Ms: clockMs(data?.clockStop?.half2Ms) ?? initial.clockStop.half2Ms,
+    },
   };
 }
+
+const clockMs = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
 
 const count = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, v) : null);
 

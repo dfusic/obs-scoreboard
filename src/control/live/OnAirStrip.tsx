@@ -1,8 +1,13 @@
 import {
   adjustClockMs,
+  clockStopMs,
   computeElapsedMs,
   formatClock,
+  formatMs,
+  HALF_START_MS,
   halfStartClock,
+  isClockHeld,
+  isValidClockStop,
   parseClockInput,
   pauseClock,
   setClockElapsedMs,
@@ -10,9 +15,9 @@ import {
 } from "@shared/clock";
 import { useTicking } from "@shared/react/hooks";
 import { useLiveData, useStore } from "@shared/react/store";
-import { SCENE_LABELS, type ClockState, type Half, type ProgramState } from "@shared/types";
+import { SCENE_LABELS, type ClockState, type ClockStop, type Half, type ProgramState } from "@shared/types";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Button, cn, ErrorText, Popover, Spacer } from "../ui";
+import { Button, cn, CommitInput, ErrorText, Popover, Spacer } from "../ui";
 
 const ADJUSTMENTS = [
   { label: "−1m", ms: -60_000 },
@@ -47,11 +52,25 @@ function OnAirPill({ program }: { program: ProgramState }) {
   );
 }
 
-/** The match clock; the only part of the strip that re-renders every second. */
-function ClockReadout({ clock }: { clock: ClockState }) {
-  const text = useTicking((now) => formatClock(clock, now));
+/** The match clock as shown on air (held at the clock stop); the only part of the strip that re-renders every second. */
+function ClockReadout({ clock, stopAtMs }: { clock: ClockState; stopAtMs: number | null }) {
+  const text = useTicking((now) => formatClock(clock, now, stopAtMs));
   return (
     <span className="min-w-[96px] font-condensed text-[34px] leading-none font-semibold tracking-[0.04em] text-white tabular-nums">
+      {text}
+    </span>
+  );
+}
+
+/** Running / Paused, or "Held at 45:00" while running past the clock stop. */
+function ClockStatus({ clock, stopAtMs }: { clock: ClockState; stopAtMs: number | null }) {
+  const held = useTicking((now) => clock.running && isClockHeld(clock, now, stopAtMs));
+  const text = held && stopAtMs !== null ? `Held at ${formatMs(stopAtMs)}` : clock.running ? "Running" : "Paused";
+  const tone = held ? "text-accent" : clock.running ? "text-success" : "text-warning";
+  const dot = held ? "bg-accent" : clock.running ? "bg-success" : "bg-warning";
+  return (
+    <span className={cn("flex items-center gap-1.5 font-condensed text-xs font-bold tracking-[0.1em] uppercase", tone)}>
+      <span className={cn("size-1.5 rounded-full", dot)} aria-hidden="true" />
       {text}
     </span>
   );
@@ -65,7 +84,8 @@ function ClockReadout({ clock }: { clock: ClockState }) {
 export function OnAirStrip({ right }: { right?: ReactNode }) {
   const store = useStore();
   const { match } = useLiveData();
-  const { clock, half, program } = match;
+  const { clock, clockStop, half, program } = match;
+  const stopAtMs = clockStopMs(clockStop, half);
   const save = (next: ClockState) => void store.match.updateClock(next);
 
   return (
@@ -79,20 +99,12 @@ export function OnAirStrip({ right }: { right?: ReactNode }) {
       <OnAirPill program={program} />
       <div className="mx-1 h-8 w-px bg-line-strong max-[640px]:hidden" aria-hidden="true" />
       <div className="flex items-center gap-3">
-        <ClockReadout clock={clock} />
+        <ClockReadout clock={clock} stopAtMs={stopAtMs} />
         <div className="flex flex-col leading-tight">
           <span className="font-condensed text-xs font-bold tracking-[0.1em] text-soft uppercase">
             {half === 1 ? "1st half" : "2nd half"}
           </span>
-          <span
-            className={cn(
-              "flex items-center gap-1.5 font-condensed text-xs font-bold tracking-[0.1em] text-warning uppercase",
-              clock.running && "text-success",
-            )}
-          >
-            <span className={cn("size-1.5 rounded-full bg-warning", clock.running && "bg-success")} aria-hidden="true" />
-            {clock.running ? "Running" : "Paused"}
-          </span>
+          <ClockStatus clock={clock} stopAtMs={stopAtMs} />
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -111,7 +123,7 @@ export function OnAirStrip({ right }: { right?: ReactNode }) {
         >
           {half === 1 ? "■ End half" : "■ End match"}
         </Button>
-        <ClockMenu clock={clock} half={half} />
+        <ClockMenu clock={clock} half={half} clockStop={clockStop} />
       </div>
       <Spacer />
       {/* Slot for page-wide notices, e.g. "Graphics: N changes not on air". */}
@@ -120,8 +132,70 @@ export function OnAirStrip({ right }: { right?: ReactNode }) {
   );
 }
 
-/** Everything else for the timer: halves, nudges, set time, reset. */
-function ClockMenu({ clock, half }: { clock: ClockState; half: Half }) {
+/**
+ * Where the shown clock stops in the current half (e.g. 45:00): a checkbox and the time,
+ * saved on change (blur / Enter). Only the shown time holds; the clock keeps counting, so
+ * unticking or raising the stop continues from the real time.
+ */
+function ClockStopField({ clockStop, half }: { clockStop: ClockStop; half: Half }) {
+  const store = useStore();
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const key = half === 1 ? "half1Ms" : "half2Ms";
+  const halfLabel = half === 1 ? "1st half" : "2nd half";
+  const halfStart = formatMs(HALF_START_MS[half]);
+  // A stored stop at or before the half's start (saved in the other half's terms) is ignored on air.
+  const ignored = clockStop.enabled && !isValidClockStop(clockStop[key], half);
+
+  const commit = (text: string) => {
+    const ms = parseClockInput(text);
+    if (ms === null) {
+      setError("Use mm:ss or minutes, e.g. 45 or 45:00");
+      return false;
+    }
+    if (!isValidClockStop(ms, half)) {
+      setError(`The ${halfLabel} starts at ${halfStart}: stop it later.`);
+      return false;
+    }
+    setError(null);
+    // Show what was saved ("45" → "45:00"); the field keeps focus after Enter.
+    if (inputRef.current) inputRef.current.value = formatMs(ms);
+    if (ms !== clockStop[key]) void store.match.setClockStop({ [key]: ms });
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <label className="flex flex-1 items-center gap-2 text-[13px]">
+          <input
+            type="checkbox"
+            checked={clockStop.enabled}
+            onChange={(e) => void store.match.setClockStop({ enabled: e.target.checked })}
+          />
+          {halfLabel} stops at
+        </label>
+        <CommitInput
+          ref={inputRef}
+          value={formatMs(clockStop[key])}
+          onCommit={commit}
+          inputMode="numeric"
+          placeholder="mm:ss"
+          aria-label={`${halfLabel} stop time (mm:ss or minutes)`}
+          aria-invalid={error !== null || ignored}
+          className={cn("w-[84px] tabular-nums", !clockStop.enabled && "opacity-60")}
+        />
+      </div>
+      {error ? (
+        <ErrorText>{error}</ErrorText>
+      ) : (
+        ignored && <ErrorText>Ignored: the {halfLabel} starts at {halfStart}. Set a later stop.</ErrorText>
+      )}
+    </>
+  );
+}
+
+/** Everything else for the timer: halves, nudges, set time, clock stop, reset. */
+function ClockMenu({ clock, half, clockStop }: { clock: ClockState; half: Half; clockStop: ClockStop }) {
   const store = useStore();
   const [open, setOpen] = useState(false);
   const [invalid, setInvalid] = useState(false);
@@ -188,7 +262,13 @@ function ClockMenu({ clock, half }: { clock: ClockState; half: Half }) {
         <span className={heading}>Adjust</span>
         <div className="grid grid-cols-4 gap-1.5">
           {ADJUSTMENTS.map(({ label, ms }) => (
-            <Button key={label} variant="ghost" className="px-0" onClick={() => save(adjustClockMs(clock, ms, Date.now()))}>
+            <Button
+              key={label}
+              variant="ghost"
+              className="px-0"
+              // From the time shown: held at the stop, −1m goes a minute back from the stop.
+              onClick={() => save(adjustClockMs(clock, ms, Date.now(), clockStopMs(clockStop, half)))}
+            >
               {label}
             </Button>
           ))}
@@ -200,6 +280,8 @@ function ClockMenu({ clock, half }: { clock: ClockState; half: Half }) {
           </Button>
         </form>
         {invalid && <ErrorText>Use mm:ss, e.g. 45:00</ErrorText>}
+        <span className={heading}>Stop the clock (held on screen, keeps counting)</span>
+        <ClockStopField key={half} clockStop={clockStop} half={half} />
         <div className="flex border-t border-line pt-2.5">
           <Button
             variant="ghost"

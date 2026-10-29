@@ -1,6 +1,9 @@
 import { OUTPUT_CHANNEL, type OutputFullscreenMessage, type OutputStateMessage } from "@shared/outputWindow";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+/** The output page's address, next to this one in every environment (opened on the projector / second screen). */
+export const overlayUrl = () => new URL("../overlay/overlay.html", location.href).href;
+
 /** The output window this page opened on a screen, as it last reported itself. */
 export interface OutputWindow {
   win: Window;

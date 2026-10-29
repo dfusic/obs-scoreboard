@@ -1,12 +1,14 @@
-import { OutputPreview } from "../OutputPreview";
+import { useLiveData } from "@shared/react/store";
+import { ScenePreview } from "../ScenePreview";
 import { Panel, PanelTitle } from "../ui";
 
-/** The real output page, scaled: always what's on air. */
-export function PreviewPanel() {
+/** The output's scenes, scaled: always what's on air. `active: false` (Live page hidden) drops the preview's iframe. */
+export function PreviewPanel({ active }: { active: boolean }) {
+  const data = useLiveData();
   return (
     <Panel className="overflow-hidden bg-well">
       <PanelTitle className="py-2">Output · on air</PanelTitle>
-      <OutputPreview className="rounded-none" />
+      <ScenePreview className="rounded-none" data={data} scene={null} active={active} />
     </Panel>
   );
 }

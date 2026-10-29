@@ -111,6 +111,30 @@ describe("normalizeMatch half", () => {
   });
 });
 
+describe("normalizeMatch clockStop", () => {
+  it("defaults to off at 45:00 / 90:00 for older docs", () => {
+    expect(normalizeMatch({}).clockStop).toEqual({ enabled: false, half1Ms: 45 * 60_000, half2Ms: 90 * 60_000 });
+  });
+
+  it("keeps stored values and ignores non-numbers", () => {
+    const clockStop = { enabled: true, half1Ms: 40 * 60_000, half2Ms: "x" } as never;
+    expect(normalizeMatch({ clockStop }).clockStop).toEqual({ enabled: true, half1Ms: 40 * 60_000, half2Ms: 90 * 60_000 });
+  });
+
+  // What an older match doc holds after ticking the box: setClockStop writes only `clockStop.enabled`.
+  it("fills in the times when only `enabled` was written", () => {
+    const clockStop = { enabled: true } as never;
+    expect(normalizeMatch({ clockStop }).clockStop).toEqual({ enabled: true, half1Ms: 45 * 60_000, half2Ms: 90 * 60_000 });
+  });
+
+  it("drops negative and non-finite times and a non-boolean switch, but keeps 00:00", () => {
+    const clockStop = { enabled: "yes", half1Ms: -1, half2Ms: Infinity } as never;
+    expect(normalizeMatch({ clockStop }).clockStop).toEqual({ enabled: false, half1Ms: 45 * 60_000, half2Ms: 90 * 60_000 });
+    const zero = { enabled: true, half1Ms: 0, half2Ms: NaN } as never;
+    expect(normalizeMatch({ clockStop: zero }).clockStop).toEqual({ enabled: true, half1Ms: 0, half2Ms: 90 * 60_000 });
+  });
+});
+
 describe("scene layouts", () => {
   it("default Welcome to the card, and keep a known layout", () => {
     expect(normalizeScenes([]).welcome.layout).toBe("standard");
