@@ -1,4 +1,4 @@
-import { computeElapsedMs } from "@shared/clock";
+import { clockStopMs, goalElapsedMs } from "@shared/clock";
 import { matchPlayers, sidesWithPlayers } from "@shared/liveFeed";
 import { goalMinute } from "@shared/program";
 import { useLiveData, useStore } from "@shared/react/store";
@@ -36,7 +36,11 @@ function SideScore({ side }: { side: Side }) {
   const lastScorer = lastGoal?.playerId ? data.players.get(lastGoal.playerId) : undefined;
 
   const addGoal = () => {
-    void store.match.recordGoal({ side, playerId: null, elapsedMs: computeElapsedMs(data.match.clock, Date.now()) });
+    const { clock, clockStop, half } = data.match;
+    const now = Date.now();
+    // As shown on air: a stoppage-time goal while the clock is held at 45:00 is 45'.
+    const elapsedMs = goalElapsedMs(clock, now, clockStopMs(clockStop, half));
+    void store.match.recordGoal({ side, playerId: null, elapsedMs, recordedAtMs: now });
     setPicker(hasPlayers ? "add" : null);
   };
 

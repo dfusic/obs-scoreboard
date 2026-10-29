@@ -7,13 +7,19 @@ import {
   type Transition,
   type TransitionFrame,
 } from "@shared/transitions";
-import type { SceneType, SchemeColors } from "@shared/types";
+import { viewScene } from "@shared/program";
+import type { SceneType } from "@shared/types";
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useOverlayDocument } from "./context";
 
+/**
+ * Transitions run between views (programView() in shared/program.ts: scene and side), so
+ * the same scene for the other side plays one too.
+ */
 interface Run {
-  /** The scene leaving; null when replaying the transition onto the current scene. */
-  from: SceneType | null;
-  to: SceneType;
+  /** The view leaving; null when replaying the transition onto the current view. */
+  from: string | null;
+  to: string;
   def: Transition;
   /** performance.now() when it started. */
   startMs: number;
@@ -21,29 +27,33 @@ interface Run {
 
 const VARS = ["--tr-out", "--tr-in", "--tr-in-linear", "--tr-a", "--tr-b", "--tr-logo", "--tr-swap"] as const;
 
-function writeFrame(f: TransitionFrame) {
+/** Writes a frame's --tr-* variables on the overlay document's body. */
+function writeFrame(body: HTMLElement, f: TransitionFrame) {
   const values = [f.out, f.in, f.inLinear, f.cover, f.reveal, f.logo, f.swapped ? 1 : 0];
-  VARS.forEach((name, i) => document.body.style.setProperty(name, String(values[i])));
+  VARS.forEach((name, i) => body.style.setProperty(name, String(values[i])));
 }
 
-function clearFrame() {
-  for (const name of VARS) document.body.style.removeProperty(name);
+function clearFrame(body: HTMLElement) {
+  for (const name of VARS) body.style.removeProperty(name);
 }
 
 /**
- * Moves the output from scene to scene with the chosen transition (shared/transitions.ts).
- * React renders once when a transition starts and once when it ends; in between, a
- * requestAnimationFrame loop writes the --tr-* variables on body, only when the 30 fps
- * frame changes. Returns each scene's data-tr role (undefined = hidden), the scene
- * shown (switches at the swap, for the background), and the running transition, for
- * the curtain.
+ * Moves the output from view to view (a scene, and its side) with the chosen transition
+ * (shared/transitions.ts). React renders once when a transition starts and once when it
+ * ends; in between, a requestAnimationFrame loop writes the --tr-* variables on body,
+ * only when the 30 fps frame changes. Returns each scene's data-tr role (undefined =
+ * hidden), the view leaving when it is the same scene as the one coming in (a side
+ * change: the overlay draws it in a second section, `sameSceneOut`), the view shown
+ * (switches at the swap, for the background), and the running transition (with its
+ * start time, which a retarget keeps), for the curtain.
  *
- * A new target before a transition swaps scenes replaces its destination; after that,
+ * A new target before a transition swaps views replaces its destination; after that,
  * the next transition starts when this one ends. `replay` (a counter) plays the
- * transition onto the current scene, for the Graphics preview.
+ * transition onto the current view, for the Graphics preview.
  */
-export function useSceneTransition(target: SceneType, transitionId: string, replay: number) {
-  const [current, setCurrent] = useState<SceneType>(target);
+export function useSceneTransition(target: string, transitionId: string, replay: number) {
+  const { body } = useOverlayDocument();
+  const [current, setCurrent] = useState<string>(target);
   const [run, setRun] = useState<Run | null>(null);
   const swapped = useRef(false);
   /** Mirrors `swapped` for rendering: one extra render at the swap, for the scene's background. */
@@ -86,7 +96,7 @@ export function useSceneTransition(target: SceneType, transitionId: string, repl
       // Hold the last frame until React has rendered the settled scene: the browser can
       // paint before that render, and with the variables cleared (frame 0) it would flash
       // the old scene. The layout effect below clears them after the commit.
-      writeFrame(transitionFrame(run.def.kind, totalFrames(run.def.kind)));
+      writeFrame(body, transitionFrame(run.def.kind, totalFrames(run.def.kind)));
       setCurrent(run.to);
       setRun(null);
       setSwappedShown(false);
@@ -99,7 +109,7 @@ export function useSceneTransition(target: SceneType, transitionId: string, repl
         swapped.current = f.swapped;
         setSwappedShown(f.swapped);
         if (f.done) return finish();
-        writeFrame(f);
+        writeFrame(body, f);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -116,19 +126,32 @@ export function useSceneTransition(target: SceneType, transitionId: string, repl
   // Once settled (committed, before paint), the variables go: "on" scenes don't read them,
   // and the next transition starts from frame 0.
   useLayoutEffect(() => {
-    if (!run) clearFrame();
-  }, [run]);
+    if (!run) clearFrame(body);
+  }, [run, body]);
 
   const role = (type: SceneType): string | undefined => {
-    if (!run) return type === current ? "on" : undefined;
-    if (run.from === run.to) return type === run.to ? "on" : undefined;
-    if (type === run.from) return `${run.def.kind}-out`;
-    if (type === run.to) return `${run.def.kind}-in`;
+    if (!run) return type === viewScene(current) ? "on" : undefined;
+    if (run.from === run.to) return type === viewScene(run.to) ? "on" : undefined;
+    // The incoming view first: on a side change its scene's section comes in, and the
+    // leaving side goes out in the `sameSceneOut` section.
+    if (type === viewScene(run.to)) return `${run.def.kind}-in`;
+    if (run.from !== null && type === viewScene(run.from)) return `${run.def.kind}-out`;
     return undefined;
   };
-  /** The scene the output stands for right now: the old one until the transition swaps. */
+  const sameSceneOut =
+    run && run.from !== null && run.from !== run.to && viewScene(run.from) === viewScene(run.to)
+      ? { view: run.from, role: `${run.def.kind}-out` }
+      : null;
+  /** The view a scene's (main) section shows: the incoming one, else the leaving one, else null (not involved). */
+  const viewOf = (type: SceneType): string | null => {
+    if (!run) return type === viewScene(current) ? current : null;
+    if (type === viewScene(run.to)) return run.to;
+    if (run.from !== null && type === viewScene(run.from)) return run.from;
+    return null;
+  };
+  /** The view the output stands for right now: the old one until the transition swaps. */
   const shown = run ? (swappedShown || !run.from ? run.to : run.from) : current;
-  return { role, shown, running: run?.def ?? null };
+  return { role, viewOf, sameSceneOut, shown, running: run ? { def: run.def, startMs: run.startMs } : null };
 }
 
 /** Seeded, so every client draws the same pixels. */
@@ -224,20 +247,22 @@ function CurtainPieces({ id }: { id: string }) {
 }
 
 /**
- * The curtain of a cover transition, over every scene: pieces in the colour scheme's
- * colours (highlight and background), with the team logo in the middle while closed.
+ * The curtain of a cover transition, over every scene: pieces in `c1` and `c2` (see
+ * `curtainColors` in shared/transitions.ts), with the team logo in the middle while closed.
  * Rendered once per transition; it moves by the --tr-* variables only.
  */
 export const TransitionCurtain = memo(function TransitionCurtain({
   id,
-  colors,
+  c1,
+  c2,
   logo,
 }: {
   id: string;
-  colors: SchemeColors;
+  c1: string;
+  c2: string;
   logo: string | null;
 }) {
-  const style = { "--c1": colors.highlight, "--c2": colors.background ?? "#0a0c10" } as CSSProperties;
+  const style = { "--c1": c1, "--c2": c2 } as CSSProperties;
   return (
     <div className="tr-cover" data-transition={id} style={style} aria-hidden>
       <CurtainPieces id={id} />

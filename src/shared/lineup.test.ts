@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moveInLineup, resolveLineup, stepIntro, toggleInLineup } from "./lineup";
+import { lineupLabels, moveInLineup, resolveLineup, stepIntro, toggleInLineup } from "./lineup";
 import type { Player } from "./types";
 
 const player = (id: string): Player => ({ id, teamId: "t", name: id.toUpperCase(), photo: null });
@@ -27,6 +27,41 @@ describe("moveInLineup", () => {
   it("clamps the target and ignores a bad source", () => {
     expect(moveInLineup(["a", "b", "c"], 0, 99)).toEqual(["b", "c", "a"]);
     expect(moveInLineup(["a", "b"], 5, 0)).toEqual(["a", "b"]);
+  });
+});
+
+describe("lineupLabels", () => {
+  it("shows each player by surname, in order", () => {
+    expect(lineupLabels(["Adrijan Coha", "Marko Horvat", "Ana Marija Babić"])).toEqual(["Coha", "Horvat", "Babić"]);
+  });
+
+  it("adds the first initial when a surname is shared (case-insensitive), leaving others alone", () => {
+    expect(lineupLabels(["Ivan Kovač", "Luka Horvat", "Petar KOVAČ"])).toEqual(["I. Kovač", "Horvat", "P. KOVAČ"]);
+  });
+
+  it("falls back to the full name when the initials clash too", () => {
+    expect(lineupLabels(["Ivan Kovač", "Ivo Kovač", "Petar Kovač"])).toEqual(["Ivan Kovač", "Ivo Kovač", "P. Kovač"]);
+  });
+
+  it("keeps one-word names and tidies whitespace", () => {
+    expect(lineupLabels(["Kovač", "  Ivan   Kovač ", "Pelé", ""])).toEqual(["Kovač", "I. Kovač", "Pelé", ""]);
+  });
+
+  it("uses the whole first letter of an accented first name", () => {
+    expect(lineupLabels(["Đuro Babić", "Ante Babić"])).toEqual(["Đ. Babić", "A. Babić"]);
+  });
+
+  it("takes the initial of a two-word first name's first word, and the full name when that clashes", () => {
+    expect(lineupLabels(["Ana Marija Babić", "Luka Babić"])).toEqual(["A. Babić", "L. Babić"]);
+    expect(lineupLabels(["Ana Marija Babić", "Ante Babić"])).toEqual(["Ana Marija Babić", "Ante Babić"]);
+  });
+
+  it("keeps two players with the same full name as full names", () => {
+    expect(lineupLabels(["Ivan Kovač", "Ivan Kovač", "Luka Horvat"])).toEqual(["Ivan Kovač", "Ivan Kovač", "Horvat"]);
+  });
+
+  it("returns an empty list for no players", () => {
+    expect(lineupLabels([])).toEqual([]);
   });
 });
 

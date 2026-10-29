@@ -2,9 +2,9 @@ import { matchingScheme, sameColors, theme } from "@shared/themes";
 import { transition } from "@shared/transitions";
 import type { GraphicsSettings, SceneType } from "@shared/types";
 import { useRef, useState, type ReactNode } from "react";
-import { OutputPreview } from "../OutputPreview";
+import { ScenePreview } from "../ScenePreview";
 import { Button, cn, Dialog, Hint, Popover, Spacer } from "../ui";
-import { useGraphicsDraft } from "./draftContext";
+import { useGraphicsDraft, useShownData } from "./draftContext";
 import { ChangeDot, changeState, type ChangeState } from "./status";
 import { LookColors, SchemeOptions, SchemeSwatches, ThemeOptions, ThemeThumb, TransitionOptions } from "./ThemePanels";
 
@@ -89,7 +89,8 @@ function LookPick({
  * the scene the transition picker's preview plays onto.
  */
 export function LookBar({ previewScene, onEditLook }: { previewScene: SceneType; onEditLook: () => void }) {
-  const { draft, value, onChange, states } = useLook();
+  const { value, onChange, states } = useLook();
+  const data = useShownData();
   const [replay, setReplay] = useState(0);
   const t = theme(value.theme);
   const scheme = matchingScheme(value.colors);
@@ -128,13 +129,7 @@ export function LookBar({ previewScene, onEditLook }: { previewScene: SceneType;
         <SchemeOptions value={value} onChange={onChange} />
       </LookPick>
       <LookPick label="Transition" state={states.transition} current={transition(value.transition).name}>
-        <OutputPreview
-          className="rounded-md"
-          scene={previewScene}
-          graphics={value}
-          scenes={draft.toAirScenes}
-          replay={replay}
-        />
+        <ScenePreview className="rounded-md" data={data} scene={previewScene} replay={replay} />
         <TransitionOptions value={value} onChange={onChange} onReplay={() => setReplay((n) => n + 1)} />
       </LookPick>
       <Spacer />
@@ -151,6 +146,7 @@ export function LookBar({ previewScene, onEditLook }: { previewScene: SceneType;
  */
 export function LookDialog({ open, onClose, scene }: { open: boolean; onClose: () => void; scene: SceneType }) {
   const { draft, value, onChange, states } = useLook();
+  const data = useShownData();
   const [replay, setReplay] = useState(0);
   const heading = "flex items-center gap-1.5 font-condensed text-[11px] font-bold tracking-[0.12em] text-dim uppercase";
 
@@ -158,7 +154,7 @@ export function LookDialog({ open, onClose, scene }: { open: boolean; onClose: (
     <Dialog open={open} onClose={onClose} title="Look · all scenes" className="w-[min(1120px,calc(100vw-32px))]">
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 p-[18px] max-[900px]:grid-cols-[minmax(0,1fr)]">
         <div className="flex flex-col gap-2.5 self-start min-[901px]:sticky min-[901px]:top-0">
-          <OutputPreview scene={scene} graphics={value} scenes={draft.toAirScenes} replay={replay} />
+          <ScenePreview data={data} scene={scene} replay={replay} />
           <Hint>Preview only · not on air.</Hint>
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-xs text-soft">

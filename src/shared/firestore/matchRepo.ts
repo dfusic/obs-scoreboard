@@ -51,11 +51,19 @@ export const matchApi: MatchApi = {
   ensureInitialized,
 
   // Overwrites the doc, which also drops stale fields from older versions.
-  async reset({ teams, lineup, awayPlayers }) {
-    await setDoc(liveMatchRef(), { ...createInitialMatchState(), teams, lineup, awayPlayers });
+  async reset({ teams, lineup, awayPlayers, clockStop }) {
+    await setDoc(liveMatchRef(), { ...createInitialMatchState(), teams, lineup, awayPlayers, clockStop });
   },
 
   updateClock: (clock) => updateMatch({ clock }),
+  setClockStop(fields) {
+    const paths = Object.fromEntries(
+      Object.entries(fields)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => [`clockStop.${key}`, value]),
+    );
+    return Object.keys(paths).length ? updateMatch(paths) : Promise.resolve();
+  },
   setTeam: (side, teamId) => updateMatch({ [`teams.${side}`]: teamId, [`lineup.${side}`]: [] }),
   setLineup: (side, playerIds) => updateMatch({ [`lineup.${side}`]: playerIds }),
   setAwayPlayers: (enabled) => updateMatch({ awayPlayers: enabled }),

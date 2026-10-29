@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  curtainColors,
   DEFAULT_TRANSITION,
   FRAMES,
   frameAt,
@@ -66,5 +67,27 @@ describe("transitionFrame", () => {
     const end = FRAMES.cover + FRAMES.hold + FRAMES.reveal;
     expect(transitionFrame("cover", end)).toMatchObject({ cover: 1, reveal: 1, logo: 0, done: true });
     expect(transitionFrame("cover", end - 1).done).toBe(false);
+  });
+});
+
+describe("curtainColors", () => {
+  const scheme = { background: null, score: "#fff", names: "#fff", timer: "#000", accent: "#fff", highlight: "#e8c547" };
+  const away = { primaryColor: "#1e3a8a", secondaryColor: "#ffffff" };
+
+  it("uses the away team's colours going into its intro, player card or lineup", () => {
+    for (const scene of ["presentation", "playerCard", "lineup"] as const)
+      expect(curtainColors(scheme, scene, "away", away)).toEqual({ c1: "#1e3a8a", c2: "#ffffff" });
+  });
+
+  it("uses the scheme otherwise (dark without a background)", () => {
+    expect(curtainColors(scheme, "presentation", "home", away)).toEqual({ c1: "#e8c547", c2: "#0a0c10" });
+    expect(curtainColors(scheme, "scoreboard", "away", away)).toEqual({ c1: "#e8c547", c2: "#0a0c10" });
+    expect(curtainColors(scheme, "lineup", "away", null)).toEqual({ c1: "#e8c547", c2: "#0a0c10" });
+    expect(curtainColors({ ...scheme, background: "#123456" }, "goal", "home", null).c2).toBe("#123456");
+  });
+
+  it("keeps the scheme for away-side scenes that aren't about one team's players", () => {
+    for (const scene of ["welcome", "goal", "halftime", "fulltime", "sponsors"] as const)
+      expect(curtainColors(scheme, scene, "away", away)).toEqual({ c1: "#e8c547", c2: "#0a0c10" });
   });
 });

@@ -1,153 +1,126 @@
 import { matchPlayers, type LiveData } from "@shared/liveFeed";
-import { normalizeGraphics } from "@shared/normalize";
+import { programView, takeKey, viewScene } from "@shared/program";
 import { useLiveData } from "@shared/react/store";
-import type { PreviewScenesMessage } from "@shared/previewMessages";
-import { SCENE_TYPES, type GraphicsSettings, type SceneConfigs, type SceneType } from "@shared/types";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { curtainColors } from "@shared/transitions";
+import { SCENE_TYPES, type SceneType } from "@shared/types";
+import { Fragment, useEffect, useRef, type CSSProperties } from "react";
+import { StaticModeProvider, useOverlayDocument } from "./context";
 import { SCENES, SemaforStripes, type SceneTarget } from "./scenes";
-import { useStaticMode } from "./static";
 import { TransitionCurtain, useSceneTransition } from "./Transition";
 
-const isScene = (v: unknown): v is SceneType => (SCENE_TYPES as readonly unknown[]).includes(v);
-
 /**
- * Preview override: the dashboard shows a scene without putting it on air, via
- * ?scene=<type> or a postMessage from the page embedding this one.
+ * Who the scene is about. Previews fall back to the home side and its first player.
+ * `take` restarts self-running content (marquee, lineup scroll) on every new take; a
+ * preview of a chosen scene follows no take, so there each replay counts as one.
  */
-function usePreviewScene(): SceneType | null {
-  const [scene, setScene] = useState<SceneType | null>(() => {
-    const param = new URLSearchParams(location.search).get("scene");
-    return isScene(param) ? param : null;
-  });
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin !== location.origin || e.data?.type !== "preview-scene") return;
-      setScene(isScene(e.data.scene) ? e.data.scene : null);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
-  return scene;
-}
-
-/** Preview override from the Graphics page: an unsaved theme and colours, shown only in its preview. */
-function usePreviewGraphics(): GraphicsSettings | null {
-  const [graphics, setGraphics] = useState<GraphicsSettings | null>(null);
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin !== location.origin || e.data?.type !== "preview-graphics") return;
-      setGraphics(e.data.graphics ? normalizeGraphics(e.data.graphics) : null);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
-  return graphics;
-}
-
-/**
- * Preview override from the Graphics page: unsaved scene settings (e.g. its draft), shown
- * only in its preview. Each given scene's fields are merged over the saved config.
- */
-function usePreviewScenes(): PreviewScenesMessage["scenes"] {
-  const [scenes, setScenes] = useState<PreviewScenesMessage["scenes"]>(null);
-  useEffect(() => {
-    const onMessage = (e: MessageEvent<PreviewScenesMessage>) => {
-      if (e.origin !== location.origin || e.data?.type !== "preview-scenes") return;
-      const next = e.data.scenes;
-      setScenes(next && typeof next === "object" ? next : null);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
-  return scenes;
-}
-
-function withPreviewScenes(saved: SceneConfigs, preview: PreviewScenesMessage["scenes"]): SceneConfigs {
-  if (!preview) return saved;
-  const scenes = { ...saved };
-  for (const type of SCENE_TYPES) {
-    const config = preview[type];
-    if (config && typeof config === "object") scenes[type] = { ...saved[type], ...config };
-  }
-  return scenes;
-}
-
-/** Counts "preview-transition" messages: the Graphics page asks to play the transition again. */
-function usePreviewReplay(): number {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin === location.origin && e.data?.type === "preview-transition") setCount((c) => c + 1);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, []);
-  return count;
-}
-
-/** Who the scene is about. Previews fall back to the home side and its first player. */
-function sceneTarget(data: LiveData, preview: boolean): SceneTarget {
+function sceneTarget(data: LiveData, preview: boolean, replay: number): SceneTarget {
   const { program } = data.match;
   const side = program.side ?? "home";
   const player = (program.playerId && data.players.get(program.playerId)) || null;
-  if (preview && !player) return { side, player: matchPlayers(data, side)[0] ?? null };
-  return { side, player };
+  if (preview && !player) return { side, player: matchPlayers(data, side)[0] ?? null, take: `replay:${replay}` };
+  return { side, player, take: preview ? `replay:${replay}` : takeKey(program) };
 }
 
-export function Overlay() {
-  const live = useLiveData();
-  const isStatic = useStaticMode();
-  const previewGraphics = usePreviewGraphics();
-  const previewScenes = usePreviewScenes();
-  const scenes = useMemo(() => withPreviewScenes(live.scenes, previewScenes), [live.scenes, previewScenes]);
-  const data = previewGraphics || previewScenes ? { ...live, graphics: previewGraphics ?? live.graphics, scenes } : live;
-  const previewScene = usePreviewScene();
+interface Curtain {
+  c1: string;
+  c2: string;
+  logo: string | null;
+}
+
+/**
+ * Every scene, driven by props: the on-air page (`Overlay`) and the control page's
+ * previews (ScenePreview.tsx, rendered into an iframe's document, see context.ts) both
+ * render this. `previewScene` shows that scene instead of the one on air (null: on air);
+ * changing `replay` (a counter) plays the transition again onto the scene shown.
+ * `isStatic` renders a still of that one scene: only its section, cut transitions and
+ * no timers (scenes read `useStaticMode()`); the document's body needs the `static`
+ * class for the CSS side.
+ */
+export function OverlayView({
+  data,
+  previewScene,
+  replay,
+  isStatic = false,
+}: {
+  data: LiveData;
+  previewScene: SceneType | null;
+  replay: number;
+  isStatic?: boolean;
+}) {
+  const doc = useOverlayDocument();
   const scene = previewScene ?? data.match.program.scene;
-  const target = sceneTarget(data, previewScene !== null);
-  // Each scene keeps the target it had when it last went on air, so a scene leaving keeps
-  // showing who it was about (e.g. the intro's player while the next player's card comes in).
-  const targets = useRef<Partial<Record<SceneType, SceneTarget>>>({});
-  targets.current[scene] = target;
+  const target = sceneTarget(data, previewScene !== null, replay);
+  // What transitions run between: the scene and its side, so Lineup home → Lineup away
+  // plays one. A previewed scene has no side of its own.
+  const view = programView(previewScene ? { scene: previewScene, side: null } : data.match.program);
+  // Each view keeps the target it had when it last went on air, so a view leaving keeps
+  // showing who it was about (e.g. the intro's player while the next player's card comes
+  // in, or the home lineup while the away one comes in), and each scene its last view.
+  const targets = useRef<Record<string, SceneTarget>>({});
+  const lastViews = useRef<Partial<Record<SceneType, string>>>({});
+  targets.current[view] = target;
+  lastViews.current[scene] = view;
 
-  // A static thumbnail cuts: it shows one settled scene.
+  // A still cuts: it shows one settled scene.
   const transitionId = isStatic ? "cut" : data.graphics.transition;
-  const { role, shown, running } = useSceneTransition(scene, transitionId, usePreviewReplay());
+  const { role, viewOf, sameSceneOut, shown, running } = useSceneTransition(view, transitionId, replay);
+  const targetOf = (v: string | null | undefined) => (v && targets.current[v]) || target;
 
-  // A scene's own background image replaces the default video (static, in overlay.html).
-  // Without one, the colour scheme's background colour (if it has one) does. It follows
-  // the scene shown, so behind a curtain it changes while covered.
-  const background = data.scenes[shown].background;
+  // A scene's own background image replaces the default video (static in overlay.html,
+  // rendered by ScenePreview in previews). Without one, the colour scheme's background
+  // colour (if it has one) does. It follows the scene shown, so behind a curtain it
+  // changes while covered.
+  const background = data.scenes[viewScene(shown)].background;
   const bgColor = background === null ? data.graphics.colors.background : null;
   const themeId = data.graphics.theme;
   useEffect(() => {
-    document.body.dataset.scene = shown;
-    document.body.dataset.theme = themeId;
-    document.body.classList.toggle("has-bg-image", background !== null);
-    document.body.classList.toggle("has-bg-color", bgColor !== null);
-    document.body.style.backgroundColor = bgColor ?? "";
-  }, [shown, themeId, background, bgColor]);
+    const { body } = doc;
+    body.dataset.scene = viewScene(shown);
+    body.dataset.theme = themeId;
+    body.classList.toggle("has-bg-image", background !== null);
+    body.classList.toggle("has-bg-color", bgColor !== null);
+    body.style.backgroundColor = bgColor ?? "";
+  }, [doc, shown, themeId, background, bgColor]);
   // Every scene's accent is the colour scheme's highlight.
   const accent = { "--accent": data.graphics.colors.highlight } as CSSProperties;
+  // The curtain's colours and logo are those of the take that started the transition,
+  // kept while it runs, so a retarget mid-transition doesn't make them jump.
+  const curtain = useRef<{ startMs: number; value: Curtain } | null>(null);
+  if (running?.def.kind === "cover" && curtain.current?.startMs !== running.startMs) {
+    const team = data.teams[target.side];
+    curtain.current = {
+      startMs: running.startMs,
+      value: { ...curtainColors(data.graphics.colors, scene, target.side, team), logo: (team ?? data.teams.home)?.logo ?? null },
+    };
+  }
 
   return (
-    <>
+    <StaticModeProvider value={isStatic}>
       <img className="bg-image" src={background ?? undefined} alt="" />
       {themeId === "semafor" && <SemaforStripes colors={data.graphics.colors} />}
       {(isStatic ? [scene] : SCENE_TYPES).map((type) => {
         const Scene = SCENES[type];
+        const config = data.scenes[type];
         return (
-          <section key={type} className="scene" data-layer={type} data-tr={role(type)} style={accent}>
-            <Scene data={data} config={data.scenes[type]} target={targets.current[type] ?? target} />
-          </section>
+          <Fragment key={type}>
+            <section className="scene" data-layer={type} data-tr={role(type)} style={accent}>
+              <Scene data={data} config={config} target={targetOf(viewOf(type) ?? lastViews.current[type])} />
+            </section>
+            {/* The same scene for the other side: the side leaving, until the transition ends. */}
+            {sameSceneOut && viewScene(sameSceneOut.view) === type && (
+              <section className="scene" data-layer={type} data-tr={sameSceneOut.role} style={accent}>
+                <Scene data={data} config={config} target={targetOf(sameSceneOut.view)} />
+              </section>
+            )}
+          </Fragment>
         );
       })}
-      {running?.kind === "cover" && (
-        <TransitionCurtain
-          id={running.id}
-          colors={data.graphics.colors}
-          logo={(data.teams[target.side] ?? data.teams.home)?.logo ?? null}
-        />
-      )}
-    </>
+      {running?.def.kind === "cover" && curtain.current && <TransitionCurtain id={running.def.id} {...curtain.current.value} />}
+    </StaticModeProvider>
   );
+}
+
+/** The on-air output page: what's on air, from the store. */
+export function Overlay() {
+  return <OverlayView data={useLiveData()} previewScene={null} replay={0} />;
 }

@@ -2,11 +2,10 @@ import { isEmptyPatch } from "@shared/graphicsDraft";
 import { useLiveData } from "@shared/react/store";
 import { SCENE_LAYOUTS, theme } from "@shared/themes";
 import { SCENE_LABELS, SCENE_TYPES, type SceneConfig, type SceneType } from "@shared/types";
-import { useMemo, useState } from "react";
-import { OutputPreview, StaticScenePreview } from "../OutputPreview";
-import { thumbnailData } from "../previewData";
+import { useState } from "react";
+import { ScenePreview } from "../ScenePreview";
 import { Button, cn, Hint, Panel, PanelBoundary, PanelTitle, Spacer } from "../ui";
-import { useGraphicsDraft } from "./draftContext";
+import { useGraphicsDraft, useShownData } from "./draftContext";
 import { CompetitionPanel, SceneSettingsPanel, type SceneEditProps } from "./SceneSettingsPanel";
 import { ChangeDot, type ChangeState } from "./status";
 
@@ -49,12 +48,9 @@ function OnAirBadge({ className }: { className?: string }) {
   );
 }
 
-/** A still of one scene as edited. Mounted only while thumbnails are shown, so hidden cards trim no data. */
+/** A still of one scene as edited. Mounted only while thumbnails are shown. */
 function SceneThumbnail({ type }: { type: SceneType }) {
-  const live = useLiveData();
-  const { shown } = useGraphicsDraft();
-  const data = useMemo(() => thumbnailData(live, shown, type), [live, shown, type]);
-  return <StaticScenePreview scene={type} data={data} />;
+  return <ScenePreview data={useShownData()} scene={type} still className="rounded-none" />;
 }
 
 /** One scene in the gallery: a still of it as edited, its name and settings, its states. */
@@ -111,7 +107,9 @@ export function SceneGallery({ thumbnails }: { thumbnails: boolean }) {
  */
 export function SceneEditor({ type, active, onEditLook }: { type: SceneType; active: boolean; onEditLook: () => void }) {
   const draft = useGraphicsDraft();
-  const { match } = useLiveData();
+  const live = useLiveData();
+  const shownData = useShownData();
+  const { match } = live;
   const sceneState = useSceneState();
   const [version, setVersion] = useState<"yours" | "onAir">("yours");
   const index = SCENE_TYPES.indexOf(type);
@@ -186,13 +184,7 @@ export function SceneEditor({ type, active, onEditLook }: { type: SceneType; act
               {segment("onAir", "On air now")}
             </div>
           </PanelTitle>
-          <OutputPreview
-            className="rounded-none"
-            scene={type}
-            active={active}
-            graphics={yours ? draft.shown.graphics : null}
-            scenes={yours ? draft.toAirScenes : null}
-          />
+          <ScenePreview className="rounded-none" data={yours ? shownData : live} scene={type} active={active} />
         </Panel>
         <div className="flex min-w-0 flex-col gap-4">
           <PanelBoundary name="Scene settings">

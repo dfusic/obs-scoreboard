@@ -21,8 +21,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         overlay: resolve(__dirname, "src/overlay/overlay.html"),
-        // Still scene thumbnails for the control page (no store, no video).
-        static: resolve(__dirname, "src/overlay/static.html"),
         control: resolve(__dirname, "src/control/control.html"),
       },
     },

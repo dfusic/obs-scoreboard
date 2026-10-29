@@ -39,7 +39,7 @@ export function LivePage({ hidden, stripRight }: { hidden: boolean; stripRight?:
         <div className="flex min-w-0 flex-col gap-3">
           <SetupPrompt />
           <PanelBoundary name="Output preview">
-            <PreviewPanel />
+            <PreviewPanel active={!hidden} />
           </PanelBoundary>
           <PanelBoundary name="Score">
             <ScorePanel />
